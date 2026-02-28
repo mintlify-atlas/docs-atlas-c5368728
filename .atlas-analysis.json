@@ -1,0 +1,108 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "WorkFlowy Scraper",
+  "projectDescription": "CLI tool to scrape and export your personal WorkFlowy data as Markdown or JSON",
+  "theme": "palm",
+  "primaryColor": "#4A90E2",
+  "lightColor": "#E8F4FD",
+  "darkColor": "#2C5282",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "authentication"
+            ]
+          },
+          {
+            "group": "CLI Usage",
+            "pages": [
+              "cli/export",
+              "cli/fetch",
+              "cli/login",
+              "cli/filtering"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/backup-workflow",
+              "guides/ci-integration",
+              "guides/filtering-examples"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview"
+            ]
+          },
+          {
+            "group": "Client",
+            "pages": [
+              "api/workflowy-client"
+            ]
+          },
+          {
+            "group": "Query & Filter",
+            "pages": [
+              "api/query-nodes",
+              "api/walk-nodes"
+            ]
+          },
+          {
+            "group": "Export",
+            "pages": [
+              "api/build-markdown",
+              "api/build-json",
+              "api/collect-roots"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/config",
+              "api/utilities"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Export WorkFlowy data as Markdown or JSON",
+    "Filter nodes by pattern with multiple match modes",
+    "Fetch and cache raw WorkFlowy data locally",
+    "Interactive authentication with session management",
+    "Programmatic API for library usage",
+    "Support for shared and team trees"
+  ],
+  "publicApiSurface": [
+    "wf [pattern] - Export and filter WorkFlowy data",
+    "wf fetch - Download raw WorkFlowy data",
+    "wf login - Save session credentials",
+    "WorkFlowyClient - HTTP client for WorkFlowy API",
+    "queryNodes() - Filter nodes by pattern",
+    "buildMarkdown() - Convert nodes to Markdown",
+    "buildJson() - Convert nodes to JSON",
+    "collectAllRoots() - Collect main and auxiliary trees",
+    "walkNodes() - Traverse node tree",
+    "countNodes() - Count total nodes in tree"
+  ]
+}
