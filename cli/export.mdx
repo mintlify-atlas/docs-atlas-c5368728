@@ -1,0 +1,175 @@
+---
+title: 'Export Command'
+description: 'Export WorkFlowy trees as Markdown or JSON with optional filtering'
+---
+
+The default `wf` command exports your WorkFlowy data as Markdown or JSON. It fetches from the API (or reads from a local file), optionally filters nodes by name, and outputs to stdout or a file.
+
+## Basic Usage
+
+<CodeGroup>
+```bash Markdown to stdout
+wf
+```
+
+```bash Export to file
+wf -o workflowy.md
+```
+
+```bash JSON output
+wf --json -o workflowy.json
+```
+</CodeGroup>
+
+## Command Signature
+
+```bash
+wf [pattern] [options]
+```
+
+## Arguments
+
+<ParamField path="pattern" type="string" optional>
+  Filter nodes whose name matches this pattern. Default match mode is **contains**. See [Filtering](/cli/filtering) for details.
+</ParamField>
+
+## Options
+
+<ParamField path="-o, --out" type="path" optional>
+  Write output to a file instead of stdout.
+  
+  **Example:** `-o workflowy.md`
+</ParamField>
+
+<ParamField path="-f, --file" type="path" optional>
+  Read from a local JSON file instead of fetching from the WorkFlowy API. Useful for working with cached data or testing.
+  
+  **Example:** `-f workflowy.json`
+</ParamField>
+
+<ParamField path="--json" type="boolean" optional default="false">
+  Output JSON instead of Markdown.
+</ParamField>
+
+<ParamField path="--exact" type="boolean" optional default="false">
+  Match node name exactly (case-sensitive). Mutually exclusive with other match modes.
+</ParamField>
+
+<ParamField path="--starts-with" type="boolean" optional default="false">
+  Match nodes whose name starts with the pattern. Mutually exclusive with other match modes.
+</ParamField>
+
+<ParamField path="--regex" type="boolean" optional default="false">
+  Treat the pattern as a regular expression. Mutually exclusive with other match modes.
+</ParamField>
+
+## Examples
+
+### Export Everything
+
+<CodeGroup>
+```bash Markdown
+wf -o workflowy.md
+```
+
+```bash JSON
+wf --json -o workflowy.json
+```
+
+```bash To stdout (pipe to other tools)
+wf | grep "TODO"
+wf "Project Alpha" --exact | head -100
+```
+</CodeGroup>
+
+### Filter by Pattern
+
+<CodeGroup>
+```bash Contains (default)
+# Matches "Academics", "Academics Root", "My Academics"
+wf "Academics" -o academics.md
+```
+
+```bash Exact match
+# Matches only "Academics Root"
+wf "Academics Root" --exact -o academics.md
+```
+
+```bash Starts with
+# Matches "Academics", "Academics Root", but not "My Academics"
+wf "Acad" --starts-with -o academics.md
+```
+
+```bash Regular expression
+# Matches nodes starting with "Project" followed by any characters
+wf "^Project.*" --regex -o projects.md
+```
+</CodeGroup>
+
+### Read from Local File
+
+```bash
+# First, fetch and save raw JSON
+wf fetch -o workflowy.json
+
+# Then use it as input for filtering
+wf "Academics Root" -f workflowy.json --exact -o academics.md
+```
+
+<Note>
+Reading from a local file with `-f` is faster and doesn't require authentication. Useful for repeated filtering operations or CI pipelines.
+</Note>
+
+## Terminal Output
+
+When running in an interactive terminal (TTY), you'll see progress indicators:
+
+```
+┌  wf export
+│
+◇  Fetching from WorkFlowy API
+│
+◇  Filter: mode=exact pattern="Academics Root"
+│
+◇  Matched 1 node (127 sub-nodes)
+│
+◇  Wrote 128 nodes to workflowy.md
+│
+└  Done
+```
+
+When piped or redirected, output is minimal (only the exported content).
+
+## How Filtering Works
+
+The filter performs a **depth-first search** across the entire tree. When a node's name matches:
+- That node and its **entire subtree** are included in the output
+- Children of matched nodes are not searched further (prevents duplicates)
+
+See the [Filtering](/cli/filtering) page for detailed examples and match mode comparisons.
+
+## Error Handling
+
+<AccordionGroup>
+<Accordion title="No data source found">
+  ```
+  No data source. Use --file <path>, set WORKFLOWY_SESSION_ID, or run `wf login`.
+  ```
+  
+  **Solution:** Run `wf login` to save your session ID, or set the `WORKFLOWY_SESSION_ID` environment variable.
+</Accordion>
+
+<Accordion title="Invalid JSON file">
+  ```
+  Failed to read from file.json
+  ```
+  
+  **Solution:** Ensure the file exists and contains valid JSON from `wf fetch`.
+</Accordion>
+</AccordionGroup>
+
+## Related Commands
+
+- [fetch](/cli/fetch) - Download raw WorkFlowy JSON
+- [login](/cli/login) - Save session ID for authentication
+- [Filtering](/cli/filtering) - Detailed guide on pattern matching

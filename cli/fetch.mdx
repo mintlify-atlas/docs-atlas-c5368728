@@ -1,0 +1,205 @@
+---
+title: 'Fetch Command'
+description: 'Download raw WorkFlowy data as JSON for caching and offline use'
+---
+
+The `wf fetch` command downloads your entire WorkFlowy tree from the API and saves it as raw JSON. This is useful for:
+
+- Creating local backups
+- Caching data for repeated filtering operations
+- Working offline
+- CI/CD pipelines that need stable snapshots
+
+## Basic Usage
+
+```bash
+wf fetch -o workflowy.json
+```
+
+## Command Signature
+
+```bash
+wf fetch -o <path>
+```
+
+## Options
+
+<ParamField path="-o, --out" type="path" required>
+  Output file path where the raw JSON will be saved. Parent directories are created automatically if they don't exist.
+  
+  **Example:** `-o data/workflowy.json`
+</ParamField>
+
+<Note>
+The `-o` flag is **required** for the `fetch` command. Output to stdout is not supported since the raw JSON format is intended for file storage.
+</Note>
+
+## Examples
+
+### Basic Fetch
+
+```bash
+wf fetch -o workflowy.json
+```
+
+<Steps>
+  <Step title="Authenticate">
+    The command uses your saved session ID (from `wf login`) or the `WORKFLOWY_SESSION_ID` environment variable.
+  </Step>
+  
+  <Step title="Download">
+    Fetches the complete initialization data from WorkFlowy's internal API.
+  </Step>
+  
+  <Step title="Save">
+    Writes the raw JSON to the specified file with pretty-printing (2-space indentation).
+  </Step>
+</Steps>
+
+### Fetch to Custom Location
+
+```bash
+wf fetch -o ~/backups/workflowy-$(date +%Y%m%d).json
+```
+
+This creates dated backups like `workflowy-20260228.json`.
+
+### Use in CI Pipeline
+
+```yaml
+name: Backup WorkFlowy
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch WorkFlowy data
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: |
+          npx workflowy-scraper fetch -o workflowy.json
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: workflowy-backup
+          path: workflowy.json
+```
+
+## Terminal Output
+
+When running in an interactive terminal, you'll see:
+
+```
+┌  wf fetch
+│
+◇  Fetching from WorkFlowy API
+│
+◇  Wrote 1,247 nodes to workflowy.json
+│
+└  Done
+```
+
+## Using Fetched Data
+
+Once you've fetched data to a local file, use it with the export command:
+
+<CodeGroup>
+```bash Export all
+wf -f workflowy.json -o workflowy.md
+```
+
+```bash Filter from local file
+wf "Project Alpha" -f workflowy.json --exact -o alpha.md
+```
+
+```bash Convert to JSON
+wf -f workflowy.json --json -o workflowy-filtered.json
+```
+</CodeGroup>
+
+<Tip>
+Reading from a local file is **much faster** than fetching from the API every time. It's also useful when you want to run multiple filter operations on the same snapshot.
+</Tip>
+
+## Output Format
+
+The JSON file contains WorkFlowy's internal initialization data structure:
+
+```json
+{
+  "projectTreeData": {
+    "mainProjectTreeInfo": {
+      "rootProjectChildren": [
+        {
+          "id": "...",
+          "nm": "Node name",
+          "ch": [...],
+          "...": "..."
+        }
+      ]
+    },
+    "auxProjectTreeInfos": [...]
+  },
+  "...": "..."
+}
+```
+
+<Warning>
+This is the raw API response format and may change without notice. For stable programmatic access, use the [library API](/api/overview) instead.
+</Warning>
+
+## Performance
+
+- Fetch time depends on the size of your WorkFlowy tree
+- Typical trees (1,000-10,000 nodes): 1-3 seconds
+- Large trees (50,000+ nodes): 5-10 seconds
+- File size is roughly 1KB per 5-10 nodes (highly compressed)
+
+## Error Handling
+
+<AccordionGroup>
+<Accordion title="No session ID found">
+  ```
+  No data source. Use --file <path>, set WORKFLOWY_SESSION_ID, or run `wf login`.
+  ```
+  
+  **Solution:** Run `wf login` first or set the `WORKFLOWY_SESSION_ID` environment variable.
+</Accordion>
+
+<Accordion title="Invalid session ID">
+  ```
+  Failed to fetch from WorkFlowy API
+  ```
+  
+  **Solution:** Your session ID may have expired (they last ~6 months). Run `wf login` again with a fresh session cookie.
+</Accordion>
+
+<Accordion title="Write permission denied">
+  ```
+  Failed to write to /path/to/file.json
+  ```
+  
+  **Solution:** Ensure you have write permissions for the output directory.
+</Accordion>
+</AccordionGroup>
+
+## Session Cookie Expiration
+
+WorkFlowy session cookies typically last **6 months**. When your session expires:
+
+1. You'll get authentication errors when fetching
+2. Run `wf login` again to save a new session ID
+3. In CI, rotate the `WORKFLOWY_SESSION_ID` secret
+
+<Tip>
+Store the session ID as a secret in your CI environment and update it every few months to avoid disruptions.
+</Tip>
+
+## Related Commands
+
+- [export](/cli/export) - Export with filtering
+- [login](/cli/login) - Save session ID for authentication

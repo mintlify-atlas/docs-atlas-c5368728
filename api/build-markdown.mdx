@@ -1,0 +1,55 @@
+---
+title: buildMarkdown
+description: Build a single markdown document from a list of root nodes
+---
+
+## Overview
+
+Converts an array of WorkFlowy nodes into a single markdown document with indented bullet points.
+
+## Signature
+
+```typescript
+function buildMarkdown(roots: WfNode[]): string
+```
+
+## Parameters
+
+<ParamField path="roots" type="WfNode[]" required>
+  Array of root-level WorkFlowy nodes to convert to markdown
+</ParamField>
+
+## Returns
+
+A markdown-formatted string with:
+- Indented bullet points (2 spaces per level)
+- Checked items marked with `[x]`
+- Notes formatted as blockquotes
+- Newline at end of document
+
+## Example
+
+```typescript
+import { WorkFlowyClient, collectAllRoots, buildMarkdown } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient('your-session-id')
+const data = await client.fetchInitData()
+const roots = collectAllRoots(data)
+
+const markdown = buildMarkdown(roots)
+console.log(markdown)
+// Output:
+// - First item
+//   - Nested item
+//   - [x] Completed item
+//     > This is a note
+```
+
+## Related Functions
+
+- [buildJson](/api/build-json) - Export nodes as JSON
+- [collectAllRoots](/api/collect-roots) - Collect all root nodes from main and auxiliary trees
+
+## Source
+
+Defined in `src/export/filesystem.ts:33`

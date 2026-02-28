@@ -1,0 +1,220 @@
+---
+title: 'Login Command'
+description: 'Save your WorkFlowy session ID for CLI authentication'
+---
+
+The `wf login` command saves your WorkFlowy session cookie to a local config file. This allows the CLI to authenticate with WorkFlowy's API without passing credentials on every command.
+
+## Basic Usage
+
+```bash
+wf login
+```
+
+The command will prompt you to paste your session ID, then save it to `~/.config/wf/config.json`.
+
+## Interactive Flow
+
+<Steps>
+  <Step title="Run the command">
+    ```bash
+    wf login
+    ```
+  </Step>
+  
+  <Step title="Follow the instructions">
+    The CLI will show you how to find your session cookie:
+    
+    ```
+    ┌  wf login
+    │
+    ├  How to find it
+    │  DevTools → Application → Cookies → workflowy.com → sessionid
+    │
+    ◆  Session ID: ********
+    ```
+  </Step>
+  
+  <Step title="Paste your session ID">
+    The input is masked for security. Paste the entire cookie value.
+  </Step>
+  
+  <Step title="Confirm success">
+    ```
+    └  Saved to ~/.config/wf/config.json
+    ```
+  </Step>
+</Steps>
+
+## Finding Your Session Cookie
+
+<Steps>
+  <Step title="Open WorkFlowy">
+    Navigate to [workflowy.com](https://workflowy.com) and log in.
+  </Step>
+  
+  <Step title="Open DevTools">
+    - **Chrome/Edge:** Press `F12` or `Ctrl+Shift+I` (Windows/Linux) / `Cmd+Option+I` (Mac)
+    - **Firefox:** Press `F12` or `Ctrl+Shift+I` (Windows/Linux) / `Cmd+Option+I` (Mac)
+    - **Safari:** Enable Developer menu in Preferences, then press `Cmd+Option+I`
+  </Step>
+  
+  <Step title="Navigate to Cookies">
+    - Go to the **Application** tab (Chrome/Edge) or **Storage** tab (Firefox)
+    - Expand **Cookies** in the sidebar
+    - Click on `https://workflowy.com`
+  </Step>
+  
+  <Step title="Copy the sessionid cookie">
+    - Find the cookie named `sessionid`
+    - Copy the entire **Value** column (not the name)
+    - It should be a long alphanumeric string
+  </Step>
+</Steps>
+
+<Tip>
+The session ID is typically 32-40 characters long and looks like: `abc123def456ghi789jkl012mno345pqr678`
+</Tip>
+
+## Configuration File
+
+The login command saves your session ID to:
+
+```
+~/.config/wf/config.json
+```
+
+**Format:**
+```json
+{
+  "sessionId": "your-session-id-here"
+}
+```
+
+<Warning>
+This file contains your authentication credentials. Keep it secure and never commit it to version control.
+</Warning>
+
+## Authentication Priority
+
+The CLI checks for credentials in this order:
+
+1. **Environment variable:** `WORKFLOWY_SESSION_ID`
+2. **Config file:** `~/.config/wf/config.json`
+
+If both are set, the environment variable takes precedence.
+
+## Usage Scenarios
+
+### Local Development (Recommended)
+
+Use `wf login` to store your session ID permanently:
+
+```bash
+wf login
+wf -o workflowy.md
+wf fetch -o data.json
+```
+
+### CI/CD Pipelines (Recommended)
+
+Use the environment variable instead of `wf login`:
+
+```yaml
+# .github/workflows/backup.yml
+env:
+  WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+
+steps:
+  - name: Export WorkFlowy
+    run: npx workflowy-scraper -o workflowy.md
+```
+
+<Tip>
+Store `WORKFLOWY_SESSION_ID` as a secret in your CI platform (GitHub Secrets, GitLab CI/CD Variables, etc.).
+</Tip>
+
+### One-Time Commands
+
+For quick operations without saving credentials:
+
+```bash
+WORKFLOWY_SESSION_ID=abc123 wf -o workflowy.md
+```
+
+## Session Expiration
+
+WorkFlowy session cookies typically last **~6 months**. When your session expires:
+
+1. You'll receive authentication errors when running commands
+2. Simply run `wf login` again with a fresh session cookie
+3. For CI, update the secret with a new session ID
+
+<Note>
+The CLI doesn't validate your session ID when you run `wf login`. You'll only get an error when you try to fetch data with an invalid or expired session.
+</Note>
+
+## Cancelling Login
+
+Press `Ctrl+C` or `Esc` to cancel the login flow:
+
+```
+◆  Session ID: 
+│
+◇  Login cancelled.
+```
+
+## Security Best Practices
+
+<AccordionGroup>
+<Accordion title="Keep your session ID private">
+  Never share your session ID or commit the config file to version control. It grants full access to your WorkFlowy account.
+</Accordion>
+
+<Accordion title="Use environment variables in CI">
+  Store the session ID as a secret in your CI platform rather than hardcoding it in configuration files.
+</Accordion>
+
+<Accordion title="Rotate regularly">
+  Even though sessions last ~6 months, consider rotating your session ID periodically for security.
+</Accordion>
+
+<Accordion title="Revoke if compromised">
+  If your session ID is exposed, log out of WorkFlowy (or change your password) to invalidate all sessions.
+</Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+<AccordionGroup>
+<Accordion title="Empty session ID">
+  ```
+  Session ID cannot be empty.
+  ```
+  
+  **Solution:** Paste a valid session ID (it should be 32-40 characters).
+</Accordion>
+
+<Accordion title="Permission denied writing config">
+  ```
+  Failed to write config file
+  ```
+  
+  **Solution:** Ensure you have write permissions for `~/.config/wf/`. The CLI will create the directory if it doesn't exist.
+</Accordion>
+</AccordionGroup>
+
+## Verifying Your Session
+
+After logging in, test that your session works:
+
+```bash
+wf fetch -o test.json
+```
+
+If successful, your session ID is valid and you can run any command without re-authenticating.
+
+## Related Commands
+
+- [export](/cli/export) - Export with authentication
+- [fetch](/cli/fetch) - Fetch raw data with authentication

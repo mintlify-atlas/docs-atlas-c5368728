@@ -1,0 +1,98 @@
+---
+title: 'Utilities'
+description: 'Helper functions for string processing and environment variables'
+---
+
+## stripHtml
+
+Strips HTML tags and decodes common HTML entities from a string.
+
+<ParamField path="html" type="string" required>
+  String containing HTML tags and/or entities to clean.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Cleaned string with HTML tags removed and entities decoded. Result is trimmed.
+</ResponseField>
+
+```typescript
+import { stripHtml } from 'workflowy-scraper'
+
+const html = '<b>Hello</b> &amp; <i>world</i>'
+const text = stripHtml(html)
+console.log(text) // "Hello & world"
+```
+
+### Decoded Entities
+
+The following HTML entities are decoded:
+
+- `&amp;` → `&`
+- `&lt;` → `<`
+- `&gt;` → `>`
+- `&quot;` → `"`
+- `&#39;` → `'`
+- `&nbsp;` → ` ` (space)
+
+## sanitizeFilename
+
+Converts a string to a safe filesystem filename by stripping HTML, removing illegal characters, and enforcing length limits.
+
+<ParamField path="name" type="string" required>
+  String to convert to a safe filename.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Safe filename with illegal characters replaced by hyphens. Returns `"untitled"` if input is empty after cleaning. Maximum length is 100 characters.
+</ResponseField>
+
+```typescript
+import { sanitizeFilename } from 'workflowy-scraper'
+
+const unsafe = '<b>Project:</b> Q1/Q2 Plans'
+const safe = sanitizeFilename(unsafe)
+console.log(safe) // "Project- Q1-Q2 Plans"
+
+const empty = ''
+console.log(sanitizeFilename(empty)) // "untitled"
+```
+
+### Transformations
+
+1. Strips HTML tags and decodes entities using `stripHtml`
+2. Replaces illegal filename characters (`/\:*?"<>|`) with hyphens
+3. Collapses multiple whitespace characters into single spaces
+4. Removes trailing periods
+5. Trims whitespace
+6. Truncates to 100 characters if needed
+7. Returns `"untitled"` if result is empty
+
+## requireEnv
+
+Reads a required environment variable, exiting the process with an error message if missing.
+
+<ParamField path="name" type="string" required>
+  Name of the environment variable to read.
+</ParamField>
+
+<ParamField path="hint" type="string">
+  Optional hint message to display if the variable is missing.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Value of the environment variable. Process exits with code 1 if missing.
+</ResponseField>
+
+```typescript
+import { requireEnv } from 'workflowy-scraper'
+
+const apiKey = requireEnv(
+  'API_KEY',
+  'Set API_KEY in your environment or .env file'
+)
+
+// If API_KEY is not set, prints:
+// Missing API_KEY env var.
+// Set API_KEY in your environment or .env file
+// ... and exits with code 1
+```

@@ -1,0 +1,96 @@
+---
+title: Introduction
+description: Export your WorkFlowy data as Markdown or JSON with a powerful CLI tool
+---
+
+## What is WorkFlowy Scraper?
+
+WorkFlowy Scraper is a CLI tool that lets you export your personal [WorkFlowy](https://workflowy.com) data as Markdown or JSON. Since WorkFlowy doesn't offer a public API or bulk export feature, this tool uses their internal API to give you complete access to your data.
+
+## Why use WorkFlowy Scraper?
+
+<CardGroup cols={2}>
+  <Card title="Local Backups" icon="hard-drive">
+    Export your entire WorkFlowy outline to keep secure local backups of your data
+  </Card>
+  <Card title="Advanced Search" icon="magnifying-glass">
+    Filter and search your notes locally without relying on WorkFlowy's web interface
+  </Card>
+  <Card title="CI Integration" icon="gears">
+    Automate workflows by pulling WorkFlowy data into your CI pipelines
+  </Card>
+  <Card title="Data Portability" icon="arrow-right-arrow-left">
+    Feed your notes into other tools and services for analysis or migration
+  </Card>
+</CardGroup>
+
+## Key Features
+
+- **Multiple Output Formats**: Export as Markdown or JSON
+- **Powerful Filtering**: Search by contains, exact match, starts-with, or regex patterns
+- **Full Tree Access**: Access your entire outline including shared and team trees
+- **File or Stdout**: Write to files or pipe output to other commands
+- **Local Caching**: Fetch data once and filter it locally for faster iterations
+- **Programmatic API**: Use as a library in your own TypeScript/JavaScript projects
+
+## How It Works
+
+The scraper authenticates using your WorkFlowy session cookie and fetches your entire outline via their internal API. You can then:
+
+1. Export everything or filter by node name patterns
+2. Output as Markdown (default) or JSON format
+3. Write to a file or stdout for piping to other tools
+4. Cache data locally to avoid repeated API calls
+
+<Note>
+  WorkFlowy Scraper performs a depth-first search across your entire tree. When a node matches your filter pattern, that node and its complete subtree are included in the output.
+</Note>
+
+## Quick Example
+
+```bash
+# Export everything as Markdown
+wf
+
+# Export a specific node and its subtree
+wf "Meeting Notes" --exact -o notes.md
+
+# Export as JSON
+wf --json -o workflowy.json
+
+# Filter with regex
+wf "^Project.*2026$" --regex
+```
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install via npm, yarn, pnpm, or bun
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Set up your WorkFlowy session cookie
+  </Card>
+  <Card title="CLI Usage" icon="terminal" href="/cli/export">
+    Learn the command-line interface
+  </Card>
+  <Card title="Filtering" icon="filter" href="/cli/filtering">
+    Master the filtering and matching system
+  </Card>
+</CardGroup>
+
+## Use as a Library
+
+WorkFlowy Scraper can also be used programmatically in your TypeScript or JavaScript projects:
+
+```typescript
+import { WorkFlowyClient, queryNodes, buildMarkdown } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient(sessionId)
+const data = await client.fetchInitData()
+// ... filter and process your data
+```
+
+<Card title="API Reference" icon="code" href="/api/overview">
+  Explore the programmatic API
+</Card>

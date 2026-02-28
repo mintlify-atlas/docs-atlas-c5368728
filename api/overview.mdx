@@ -1,0 +1,102 @@
+---
+title: API Overview
+description: Use workflowy-scraper programmatically to fetch, query, and export WorkFlowy data
+---
+
+## Installation
+
+```bash
+npm install workflowy-scraper
+```
+
+## Usage
+
+The package exports its internals for programmatic use:
+
+```ts
+import { WorkFlowyClient, queryNodes, collectAuxRoots, buildMarkdown } from 'workflowy-scraper'
+```
+
+## Exports
+
+### Client
+
+- `WorkFlowyClient` - HTTP client for the WorkFlowy API
+
+### WorkFlowy Data
+
+- `countNodes` - Counts all nodes in a tree (including nested children)
+- `findAuxTree` - Finds an auxiliary (shared) tree by its display name
+- `listAuxTreeNames` - Returns the display names of all auxiliary (shared) trees
+- `queryNodes` - Searches the tree depth-first and returns matching nodes
+- `walkNodes` - Invokes a callback for every node in the tree (depth-first)
+
+### Export Functions
+
+- `buildJson` - Serializes a list of root nodes as pretty-printed JSON
+- `buildMarkdown` - Builds a single markdown document from a list of root nodes
+- `buildSectionMarkdown` - Builds a complete markdown document for a top-level section node
+- `collectAllRoots` - Collects all top-level nodes from both the main tree and auxiliary (shared/team) trees
+- `collectAuxRoots` - Assembles auxiliary (shared/team) trees into a single list of top-level nodes
+- `nodeToMarkdown` - Recursively converts a WorkFlowy node tree into indented markdown bullet points
+- `totalNodeCount` - Returns the total node count for a set of roots
+- `writeToFile` - Writes content to a file, creating parent directories as needed
+
+### Configuration
+
+- `getConfigDir` - Returns the platform-appropriate config directory for the `wf` CLI
+- `getConfigPath` - Returns the full path to the config file
+- `readConfig` - Reads the config file, returning an empty object if it doesn't exist
+- `resolveSessionId` - Resolves the WorkFlowy session ID from environment or config file
+- `writeConfig` - Writes the config file, merging with any existing values
+
+### Utilities
+
+- `requireEnv` - Reads a required env var, exiting with an error message if missing
+- `sanitizeFilename` - Converts a string to a safe filesystem filename (strips HTML, removes illegal chars)
+- `stripHtml` - Strips HTML tags and decodes common HTML entities
+
+## Type Exports
+
+```ts
+import type {
+  AuxTreeInfo,
+  InitData,
+  MainTreeInfo,
+  MatchMode,
+  QueryOptions,
+  WfNode,
+} from 'workflowy-scraper'
+```
+
+- `AuxTreeInfo` - Type representing an auxiliary (shared) tree
+- `InitData` - Type representing the full WorkFlowy initialization data response
+- `MainTreeInfo` - Type representing the main tree information
+- `MatchMode` - Match mode for queries: `'contains' | 'exact' | 'regex' | 'starts-with'`
+- `QueryOptions` - Options for querying nodes
+- `WfNode` - Type representing a WorkFlowy node
+
+## Example
+
+```ts
+import { WorkFlowyClient, collectAllRoots, queryNodes, buildMarkdown } from 'workflowy-scraper'
+
+const sessionId = process.env.WORKFLOWY_SESSION_ID
+const client = new WorkFlowyClient(sessionId)
+
+// Fetch all data
+const data = await client.fetchInitData()
+
+// Get all root nodes (main + shared trees)
+const allRoots = collectAllRoots(data)
+
+// Search for nodes matching a pattern
+const academics = queryNodes(allRoots, {
+  pattern: 'Academics Root',
+  mode: 'exact'
+})
+
+// Export to markdown
+const markdown = buildMarkdown(academics)
+console.log(markdown)
+```

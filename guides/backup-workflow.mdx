@@ -1,0 +1,422 @@
+---
+title: Backup Workflows
+description: Practical workflows for backing up your WorkFlowy data automatically
+---
+
+This guide shows you how to create automated backups of your WorkFlowy data using cron jobs, scripts, and various scheduling tools.
+
+## Quick Backup Script
+
+Create a simple backup script that saves your WorkFlowy data with timestamps:
+
+<CodeGroup>
+
+```bash backup.sh
+#!/bin/bash
+set -e
+
+# Configuration
+BACKUP_DIR="$HOME/workflowy-backups"
+DATE=$(date +"%Y-%m-%d")
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Export full backup as JSON (for complete data preservation)
+wf fetch -o "$BACKUP_DIR/workflowy_$TIMESTAMP.json"
+
+# Export as Markdown (for human-readable format)
+wf -o "$BACKUP_DIR/workflowy_$TIMESTAMP.md"
+
+# Keep only last 30 days of backups
+find "$BACKUP_DIR" -name "workflowy_*.json" -mtime +30 -delete
+find "$BACKUP_DIR" -name "workflowy_*.md" -mtime +30 -delete
+
+echo "Backup completed: $TIMESTAMP"
+```
+
+```powershell backup.ps1
+# PowerShell backup script for Windows
+$BackupDir = "$env:USERPROFILE\workflowy-backups"
+$Date = Get-Date -Format "yyyy-MM-dd"
+$Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+
+# Create backup directory
+New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+
+# Export backups
+wf fetch -o "$BackupDir\workflowy_$Timestamp.json"
+wf -o "$BackupDir\workflowy_$Timestamp.md"
+
+# Clean up old backups (30 days)
+Get-ChildItem -Path $BackupDir -Filter "workflowy_*.json" | 
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | 
+    Remove-Item
+
+Get-ChildItem -Path $BackupDir -Filter "workflowy_*.md" | 
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | 
+    Remove-Item
+
+Write-Host "Backup completed: $Timestamp"
+```
+
+</CodeGroup>
+
+Make the script executable:
+
+```bash
+chmod +x backup.sh
+```
+
+## Automated Scheduling
+
+<Tabs>
+  <Tab title="Cron (Linux/macOS)">
+    Schedule daily backups using cron:
+
+    ```bash
+    # Edit your crontab
+    crontab -e
+    ```
+
+    Add one of these lines:
+
+    ```cron
+    # Daily at 2 AM
+    0 2 * * * /home/username/backup.sh >> /home/username/workflowy-backups/backup.log 2>&1
+
+    # Every 6 hours
+    0 */6 * * * /home/username/backup.sh >> /home/username/workflowy-backups/backup.log 2>&1
+
+    # Weekly on Sunday at 3 AM
+    0 3 * * 0 /home/username/backup.sh >> /home/username/workflowy-backups/backup.log 2>&1
+    ```
+
+    <Tip>
+    Make sure to use absolute paths in cron jobs and set the `WORKFLOWY_SESSION_ID` environment variable in your script or crontab.
+    </Tip>
+
+    To include environment variables in cron:
+
+    ```cron
+    WORKFLOWY_SESSION_ID=your_session_id_here
+    0 2 * * * /home/username/backup.sh >> /home/username/workflowy-backups/backup.log 2>&1
+    ```
+  </Tab>
+
+  <Tab title="systemd Timer (Linux)">
+    Create a systemd service and timer for more robust scheduling:
+
+    **Service file** (`~/.config/systemd/user/workflowy-backup.service`):
+
+    ```ini
+    [Unit]
+    Description=WorkFlowy Backup Service
+
+    [Service]
+    Type=oneshot
+    Environment="WORKFLOWY_SESSION_ID=your_session_id_here"
+    ExecStart=/home/username/backup.sh
+    ```
+
+    **Timer file** (`~/.config/systemd/user/workflowy-backup.timer`):
+
+    ```ini
+    [Unit]
+    Description=WorkFlowy Backup Timer
+
+    [Timer]
+    OnCalendar=daily
+    Persistent=true
+
+    [Install]
+    WantedBy=timers.target
+    ```
+
+    Enable and start the timer:
+
+    ```bash
+    systemctl --user enable workflowy-backup.timer
+    systemctl --user start workflowy-backup.timer
+
+    # Check status
+    systemctl --user status workflowy-backup.timer
+    systemctl --user list-timers
+    ```
+  </Tab>
+
+  <Tab title="Task Scheduler (Windows)">
+    Use Windows Task Scheduler:
+
+    ```powershell
+    # Create a scheduled task
+    $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-File C:\Users\username\backup.ps1"
+    $Trigger = New-ScheduledTaskTrigger -Daily -At 2am
+    $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable
+
+    Register-ScheduledTask -TaskName "WorkFlowy Backup" -Action $Action -Trigger $Trigger -Settings $Settings
+    ```
+
+    Set environment variable in Task Scheduler:
+    1. Open Task Scheduler
+    2. Find "WorkFlowy Backup" task
+    3. Edit → Actions → Edit Action
+    4. Add to "Add arguments": `-Command "$env:WORKFLOWY_SESSION_ID='your_session'; & C:\Users\username\backup.ps1"`
+  </Tab>
+
+  <Tab title="launchd (macOS)">
+    Create a launch agent (`~/Library/LaunchAgents/com.workflowy.backup.plist`):
+
+    ```xml
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>com.workflowy.backup</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/Users/username/backup.sh</string>
+        </array>
+        <key>EnvironmentVariables</key>
+        <dict>
+            <key>WORKFLOWY_SESSION_ID</key>
+            <string>your_session_id_here</string>
+        </dict>
+        <key>StartCalendarInterval</key>
+        <dict>
+            <key>Hour</key>
+            <integer>2</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </dict>
+    </plist>
+    ```
+
+    Load the agent:
+
+    ```bash
+    launchctl load ~/Library/LaunchAgents/com.workflowy.backup.plist
+    launchctl start com.workflowy.backup
+    ```
+  </Tab>
+</Tabs>
+
+## Selective Backups
+
+Back up specific sections of your WorkFlowy tree:
+
+```bash selective-backup.sh
+#!/bin/bash
+set -e
+
+BACKUP_DIR="$HOME/workflowy-backups"
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+
+mkdir -p "$BACKUP_DIR"
+
+# First, fetch and cache the full tree
+wf fetch -o "$BACKUP_DIR/.cache.json"
+
+# Export specific sections
+wf "Work" --exact -f "$BACKUP_DIR/.cache.json" -o "$BACKUP_DIR/work_$TIMESTAMP.md"
+wf "Personal" --exact -f "$BACKUP_DIR/.cache.json" -o "$BACKUP_DIR/personal_$TIMESTAMP.md"
+wf "Projects" --exact -f "$BACKUP_DIR/.cache.json" -o "$BACKUP_DIR/projects_$TIMESTAMP.md"
+
+# Keep the full cache as JSON
+mv "$BACKUP_DIR/.cache.json" "$BACKUP_DIR/full_$TIMESTAMP.json"
+
+echo "Selective backups completed: $TIMESTAMP"
+```
+
+## Cloud Sync Integration
+
+Integrate backups with cloud storage:
+
+<Steps>
+  <Step title="Create backup directory in cloud folder">
+    ```bash
+    # Dropbox
+    BACKUP_DIR="$HOME/Dropbox/workflowy-backups"
+
+    # Google Drive (using rclone)
+    BACKUP_DIR="$HOME/gdrive/workflowy-backups"
+
+    # iCloud
+    BACKUP_DIR="$HOME/Library/Mobile Documents/com~apple~CloudDocs/workflowy-backups"
+    ```
+  </Step>
+
+  <Step title="Update backup script to use cloud directory">
+    Modify the `BACKUP_DIR` variable in your backup script to point to your cloud folder.
+  </Step>
+
+  <Step title="Run backup and verify sync">
+    ```bash
+    ./backup.sh
+    
+    # Verify files are syncing
+    ls -lh "$BACKUP_DIR"
+    ```
+  </Step>
+</Steps>
+
+## Git-based Versioning
+
+Track changes over time using Git:
+
+```bash git-backup.sh
+#!/bin/bash
+set -e
+
+REPO_DIR="$HOME/workflowy-git-backup"
+DATE=$(date +"%Y-%m-%d %H:%M:%S")
+
+# Initialize repo if needed
+if [ ! -d "$REPO_DIR/.git" ]; then
+    mkdir -p "$REPO_DIR"
+    cd "$REPO_DIR"
+    git init
+    echo "# WorkFlowy Backup" > README.md
+    git add README.md
+    git commit -m "Initial commit"
+fi
+
+cd "$REPO_DIR"
+
+# Export current state
+wf fetch -o workflowy.json
+wf -o workflowy.md
+
+# Commit changes if any
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+    git add .
+    git commit -m "Backup: $DATE"
+    echo "Changes committed: $DATE"
+else
+    echo "No changes detected"
+fi
+
+# Optional: Push to remote
+# git push origin main
+```
+
+<Tip>
+Git-based backups let you:
+- See exactly what changed between backups
+- Restore to any point in time
+- Use `git diff` to compare versions
+- Push to GitHub/GitLab for off-site backup
+</Tip>
+
+## Backup Verification
+
+Add verification to your backup script:
+
+```bash verify-backup.sh
+#!/bin/bash
+set -e
+
+BACKUP_FILE="$1"
+
+if [ ! -f "$BACKUP_FILE" ]; then
+    echo "Error: Backup file not found"
+    exit 1
+fi
+
+# Check file size (should be > 1KB)
+SIZE=$(stat -f%z "$BACKUP_FILE" 2>/dev/null || stat -c%s "$BACKUP_FILE" 2>/dev/null)
+if [ "$SIZE" -lt 1024 ]; then
+    echo "Error: Backup file is too small ($SIZE bytes)"
+    exit 1
+fi
+
+# For JSON: verify it's valid JSON
+if [[ "$BACKUP_FILE" == *.json ]]; then
+    if ! jq empty "$BACKUP_FILE" 2>/dev/null; then
+        echo "Error: Invalid JSON in backup file"
+        exit 1
+    fi
+fi
+
+echo "Backup verification passed: $BACKUP_FILE ($SIZE bytes)"
+```
+
+Integrate into your backup script:
+
+```bash
+# After creating backup
+wf fetch -o "$BACKUP_DIR/workflowy_$TIMESTAMP.json"
+./verify-backup.sh "$BACKUP_DIR/workflowy_$TIMESTAMP.json"
+```
+
+## Rotation and Cleanup Strategies
+
+<CodeGroup>
+
+```bash daily-weekly-monthly.sh
+#!/bin/bash
+# Keep: Last 7 daily backups, 4 weekly backups, 12 monthly backups
+
+BACKUP_DIR="$HOME/workflowy-backups"
+DATE=$(date +"%Y-%m-%d")
+DAY_OF_WEEK=$(date +"%u")  # 1-7 (Monday-Sunday)
+DAY_OF_MONTH=$(date +"%d")
+
+# Daily backup
+wf fetch -o "$BACKUP_DIR/daily/workflowy_$DATE.json"
+
+# Weekly backup (on Sundays)
+if [ "$DAY_OF_WEEK" -eq 7 ]; then
+    cp "$BACKUP_DIR/daily/workflowy_$DATE.json" "$BACKUP_DIR/weekly/workflowy_$DATE.json"
+fi
+
+# Monthly backup (on 1st of month)
+if [ "$DAY_OF_MONTH" -eq 1 ]; then
+    cp "$BACKUP_DIR/daily/workflowy_$DATE.json" "$BACKUP_DIR/monthly/workflowy_$DATE.json"
+fi
+
+# Cleanup
+find "$BACKUP_DIR/daily" -name "*.json" -mtime +7 -delete
+find "$BACKUP_DIR/weekly" -name "*.json" -mtime +28 -delete
+find "$BACKUP_DIR/monthly" -name "*.json" -mtime +365 -delete
+```
+
+```bash size-based-rotation.sh
+#!/bin/bash
+# Keep backups until directory exceeds 1GB
+
+BACKUP_DIR="$HOME/workflowy-backups"
+MAX_SIZE_MB=1024
+
+wf fetch -o "$BACKUP_DIR/workflowy_$(date +"%Y-%m-%d_%H-%M-%S").json"
+
+# Calculate directory size
+DIR_SIZE=$(du -sm "$BACKUP_DIR" | cut -f1)
+
+if [ "$DIR_SIZE" -gt "$MAX_SIZE_MB" ]; then
+    echo "Directory size ($DIR_SIZE MB) exceeds limit ($MAX_SIZE_MB MB)"
+    # Delete oldest files until under limit
+    while [ "$DIR_SIZE" -gt "$MAX_SIZE_MB" ]; do
+        OLDEST=$(ls -t "$BACKUP_DIR"/*.json | tail -1)
+        rm "$OLDEST"
+        echo "Deleted: $OLDEST"
+        DIR_SIZE=$(du -sm "$BACKUP_DIR" | cut -f1)
+    done
+fi
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CI Integration" icon="gears" href="/guides/ci-integration">
+    Learn how to use backups in CI/CD pipelines
+  </Card>
+  <Card title="Filtering Examples" icon="filter" href="/guides/filtering-examples">
+    Extract specific sections from your backups
+  </Card>
+</CardGroup>

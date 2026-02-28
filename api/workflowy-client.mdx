@@ -1,0 +1,190 @@
+---
+title: WorkFlowyClient
+description: HTTP client for the WorkFlowy API, authenticated via session cookie
+---
+
+## Constructor
+
+Creates a new WorkFlowyClient instance with the provided session ID.
+
+```ts
+const client = new WorkFlowyClient(sessionId: string)
+```
+
+<ParamField path="sessionId" type="string" required>
+  WorkFlowy session cookie value. Obtain this from your browser's DevTools → Application → Cookies → `sessionid`. Valid for approximately 6 months.
+</ParamField>
+
+### Example
+
+```ts
+import { WorkFlowyClient } from 'workflowy-scraper'
+
+const sessionId = process.env.WORKFLOWY_SESSION_ID
+const client = new WorkFlowyClient(sessionId)
+```
+
+## Methods
+
+### fetchInitData()
+
+Fetches the full WorkFlowy tree via the initialization data endpoint.
+
+```ts
+async fetchInitData(): Promise<InitData>
+```
+
+#### Returns
+
+<ResponseField name="InitData" type="object">
+  The complete WorkFlowy initialization data containing the main tree and all auxiliary (shared) trees.
+  
+  <ResponseField name="projectTreeData" type="object">
+    Container for all tree data.
+    
+    <ResponseField name="mainProjectTreeInfo" type="MainTreeInfo">
+      Your personal WorkFlowy tree.
+      
+      <ResponseField name="rootProject" type="WfNode | null">
+        The root node of the main tree (typically null as the root is virtual).
+      </ResponseField>
+      
+      <ResponseField name="rootProjectChildren" type="WfNode[]">
+        Top-level nodes in your main tree.
+      </ResponseField>
+      
+      <ResponseField name="dateJoinedTimestampInSeconds" type="number">
+        Unix timestamp of when the account was created.
+      </ResponseField>
+      
+      <ResponseField name="initialMostRecentOperationTransactionId" type="string" optional>
+        Transaction ID for synchronization.
+      </ResponseField>
+    </ResponseField>
+    
+    <ResponseField name="auxiliaryProjectTreeInfos" type="AuxTreeInfo[]">
+      Array of shared/team trees you have access to.
+      
+      <ResponseField name="rootProject" type="WfNode">
+        The root node of the shared tree.
+      </ResponseField>
+      
+      <ResponseField name="rootProjectChildren" type="WfNode[]">
+        Top-level nodes in the shared tree.
+      </ResponseField>
+      
+      <ResponseField name="shareId" type="string" optional>
+        Unique identifier for the share.
+      </ResponseField>
+      
+      <ResponseField name="shareType" type="string" optional>
+        Type of share (e.g., "team", "personal").
+      </ResponseField>
+      
+      <ResponseField name="permissionLevel" type="number" optional>
+        Permission level for this shared tree.
+      </ResponseField>
+    </ResponseField>
+    
+    <ResponseField name="clientId" type="string">
+      Unique identifier for this client session.
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+#### WfNode Structure
+
+Each node in the tree has the following structure:
+
+<ResponseField name="WfNode" type="object">
+  <ResponseField name="id" type="string" required>
+    Unique identifier for the node.
+  </ResponseField>
+  
+  <ResponseField name="nm" type="string" required>
+    Node name (may contain HTML formatting).
+  </ResponseField>
+  
+  <ResponseField name="no" type="string" optional>
+    Node note/description (may contain HTML formatting).
+  </ResponseField>
+  
+  <ResponseField name="ct" type="number" required>
+    Creation timestamp (Unix timestamp in seconds).
+  </ResponseField>
+  
+  <ResponseField name="lm" type="number" required>
+    Last modified timestamp (Unix timestamp in seconds).
+  </ResponseField>
+  
+  <ResponseField name="ch" type="WfNode[]" optional>
+    Array of child nodes.
+  </ResponseField>
+  
+  <ResponseField name="cp" type="number" optional>
+    Completion timestamp. If present, the node is marked as complete.
+  </ResponseField>
+  
+  <ResponseField name="lmb" type="number" optional>
+    Last modified by user ID.
+  </ResponseField>
+  
+  <ResponseField name="cb" type="number" optional>
+    Created by user ID.
+  </ResponseField>
+  
+  <ResponseField name="metadata" type="Record<string, unknown>" optional>
+    Additional metadata attached to the node.
+  </ResponseField>
+</ResponseField>
+
+#### Throws
+
+- `Error` - If the session is expired or invalid
+- `Error` - If the WorkFlowy API returns a non-OK status
+
+### Example
+
+```ts
+import { WorkFlowyClient } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient(process.env.WORKFLOWY_SESSION_ID)
+
+try {
+  const data = await client.fetchInitData()
+  
+  console.log('Main tree nodes:', data.projectTreeData.mainProjectTreeInfo.rootProjectChildren.length)
+  console.log('Shared trees:', data.projectTreeData.auxiliaryProjectTreeInfos.length)
+  
+  // Access the main tree
+  const mainNodes = data.projectTreeData.mainProjectTreeInfo.rootProjectChildren
+  
+  // Access shared trees
+  for (const auxTree of data.projectTreeData.auxiliaryProjectTreeInfos) {
+    console.log('Shared tree:', auxTree.rootProject.nm)
+    console.log('Nodes:', auxTree.rootProjectChildren.length)
+  }
+} catch (error) {
+  console.error('Failed to fetch data:', error.message)
+}
+```
+
+## Error Handling
+
+The client throws errors in the following cases:
+
+1. **Invalid or expired session**: If the session ID is invalid or expired, you'll receive an error message prompting you to re-authenticate:
+   ```
+   Session expired or invalid. Run `wf login` to re-authenticate, or set WORKFLOWY_SESSION_ID.
+   ```
+
+2. **API errors**: If the WorkFlowy API returns an error status, you'll receive:
+   ```
+   WorkFlowy API returned {status}: {statusText}
+   ```
+
+## Notes
+
+- The session cookie is valid for approximately 6 months
+- In CI environments, store the session ID as a secret and rotate it when it expires
+- HTML formatting in node names (`nm`) and notes (`no`) should be stripped using the `stripHtml` utility function for display purposes

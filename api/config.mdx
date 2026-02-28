@@ -1,0 +1,95 @@
+---
+title: 'Configuration'
+description: 'Functions for managing WorkFlowy session configuration'
+---
+
+## getConfigDir
+
+Returns the platform-appropriate config directory for the `wf` CLI.
+
+<ResponseField name="return" type="string">
+  Path to the config directory. Uses `$XDG_CONFIG_HOME/wf` if set, `%APPDATA%\wf` on Windows, or `~/.config/wf` as fallback.
+</ResponseField>
+
+```typescript
+import { getConfigDir } from 'workflowy-scraper'
+
+const configDir = getConfigDir()
+console.log(configDir) // e.g., /home/user/.config/wf
+```
+
+## getConfigPath
+
+Returns the full path to the config file.
+
+<ParamField path="relative" type="boolean" default="false">
+  If `true`, returns just the filename instead of the full path.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Full path to `config.json` or just the filename if `relative` is `true`.
+</ResponseField>
+
+```typescript
+import { getConfigPath } from 'workflowy-scraper'
+
+const fullPath = getConfigPath()
+console.log(fullPath) // e.g., /home/user/.config/wf/config.json
+
+const relativePath = getConfigPath(true)
+console.log(relativePath) // config.json
+```
+
+## readConfig
+
+Reads the config file, returning an empty object if it doesn't exist.
+
+<ResponseField name="return" type="Promise<Config>">
+  Configuration object containing `sessionId` if set, otherwise empty object.
+</ResponseField>
+
+```typescript
+import { readConfig } from 'workflowy-scraper'
+
+const config = await readConfig()
+console.log(config.sessionId) // string | undefined
+```
+
+## writeConfig
+
+Writes the config file, merging with any existing values. Creates the config directory if it doesn't exist.
+
+<ParamField path="updates" type="Config" required>
+  Configuration updates to merge. Currently supports `sessionId` property.
+</ParamField>
+
+<ResponseField name="return" type="Promise<void>">
+  Resolves when the config file has been written.
+</ResponseField>
+
+```typescript
+import { writeConfig } from 'workflowy-scraper'
+
+await writeConfig({ sessionId: 'your-session-id' })
+```
+
+## resolveSessionId
+
+Resolves the WorkFlowy session ID from the first available source:
+
+1. `WORKFLOWY_SESSION_ID` environment variable
+2. Config file (`~/.config/wf/config.json` or platform equivalent)
+
+<ResponseField name="return" type="Promise<string | undefined>">
+  The session ID if found, otherwise `undefined`.
+</ResponseField>
+
+```typescript
+import { resolveSessionId } from 'workflowy-scraper'
+
+const sessionId = await resolveSessionId()
+if (!sessionId) {
+  console.error('No session ID found')
+  process.exit(1)
+}
+```

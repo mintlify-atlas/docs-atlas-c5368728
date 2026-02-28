@@ -1,0 +1,63 @@
+---
+title: buildJson
+description: Serialize a list of root nodes as pretty-printed JSON
+---
+
+## Overview
+
+Converts an array of WorkFlowy nodes into a formatted JSON string.
+
+## Signature
+
+```typescript
+function buildJson(roots: WfNode[]): string
+```
+
+## Parameters
+
+<ParamField path="roots" type="WfNode[]" required>
+  Array of root-level WorkFlowy nodes to serialize
+</ParamField>
+
+## Returns
+
+A pretty-printed JSON string with 2-space indentation containing the node tree structure.
+
+## Example
+
+```typescript
+import { WorkFlowyClient, collectAllRoots, buildJson } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient('your-session-id')
+const data = await client.fetchInitData()
+const roots = collectAllRoots(data)
+
+const json = buildJson(roots)
+console.log(json)
+// Output:
+// [
+//   {
+//     "id": "abc123",
+//     "nm": "First item",
+//     "ct": 1234567890,
+//     "lm": 1234567890,
+//     "ch": [...]
+//   }
+// ]
+```
+
+## Use Cases
+
+- Exporting WorkFlowy data for backup
+- Data migration to other systems
+- Creating snapshots of your outline structure
+- Processing data with external tools
+
+## Related Functions
+
+- [buildMarkdown](/api/build-markdown) - Export nodes as markdown
+- [collectAllRoots](/api/collect-roots) - Collect all root nodes from main and auxiliary trees
+
+## Source
+
+Defined in `src/export/filesystem.ts:40`

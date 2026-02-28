@@ -1,0 +1,230 @@
+---
+title: Authentication
+description: Configure your WorkFlowy session cookie to access your data
+---
+
+## Overview
+
+WorkFlowy Scraper needs your WorkFlowy session cookie to authenticate API requests. The CLI checks these sources in order:
+
+1. `WORKFLOWY_SESSION_ID` environment variable
+2. Local config file (`~/.config/wf/config.json`)
+
+<Note>
+  Your session cookie is valid for approximately 6 months. You'll need to update it when it expires.
+</Note>
+
+## Finding Your Session Cookie
+
+Your WorkFlowy session cookie can be found in your browser's developer tools:
+
+<Steps>
+  <Step title="Open Developer Tools">
+    In your browser, press `F12` or right-click and select "Inspect"
+  </Step>
+  
+  <Step title="Navigate to Application/Storage">
+    - **Chrome/Edge**: Go to the **Application** tab
+    - **Firefox**: Go to the **Storage** tab
+    - **Safari**: Go to the **Storage** tab
+  </Step>
+  
+  <Step title="Find the session cookie">
+    Expand **Cookies** → **https://workflowy.com** → Look for `sessionid`
+  </Step>
+  
+  <Step title="Copy the value">
+    Copy the entire value of the `sessionid` cookie
+  </Step>
+</Steps>
+
+## Authentication Methods
+
+### Interactive Login (Recommended for Local Use)
+
+The easiest way to authenticate is using the interactive `login` command:
+
+```bash
+wf login
+```
+
+You'll be prompted to paste your session ID:
+
+```
+┌  wf login
+│
+◇  How to find it
+│  DevTools → Application → Cookies → workflowy.com → sessionid
+│
+◆  Session ID
+│  ********************************
+│
+└  Saved to ~/.config/wf/config.json
+```
+
+<Note>
+  Your session ID is saved to `~/.config/wf/config.json` on macOS/Linux, or `%APPDATA%/wf/config.json` on Windows.
+</Note>
+
+### Environment Variable (Recommended for CI)
+
+For automated workflows and CI pipelines, use the `WORKFLOWY_SESSION_ID` environment variable:
+
+<CodeGroup>
+
+```bash bash
+export WORKFLOWY_SESSION_ID=your_session_id_here
+wf
+```
+
+```yaml GitHub Actions
+name: Export WorkFlowy
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Export WorkFlowy data
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: |
+          npm install -g workflowy-scraper
+          wf --json -o workflowy.json
+```
+
+```dockerfile Docker
+FROM node:20-alpine
+
+RUN npm install -g workflowy-scraper
+
+ENV WORKFLOWY_SESSION_ID=your_session_id_here
+
+CMD ["wf", "--json", "-o", "/data/workflowy.json"]
+```
+
+</CodeGroup>
+
+<Warning>
+  Store your session ID as a secret in your CI environment. Never commit it to version control.
+</Warning>
+
+### Config File (Manual Setup)
+
+You can manually create the config file if needed:
+
+<Steps>
+  <Step title="Create the config directory">
+    <CodeGroup>
+    
+    ```bash macOS/Linux
+    mkdir -p ~/.config/wf
+    ```
+    
+    ```bash Windows
+    mkdir %APPDATA%\wf
+    ```
+    
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Create config.json">
+    <CodeGroup>
+    
+    ```bash macOS/Linux
+    echo '{"sessionId":"your_session_id_here"}' > ~/.config/wf/config.json
+    ```
+    
+    ```json config.json
+    {
+      "sessionId": "your_session_id_here"
+    }
+    ```
+    
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Config File Locations
+
+The config file location varies by platform:
+
+| Platform | Location |
+| -------- | -------- |
+| macOS/Linux | `~/.config/wf/config.json` |
+| Linux (XDG) | `$XDG_CONFIG_HOME/wf/config.json` |
+| Windows | `%APPDATA%\wf\config.json` |
+
+## Verifying Authentication
+
+Test your authentication by running a simple export:
+
+```bash
+wf --json
+```
+
+If authentication succeeds, you'll see your WorkFlowy data. If it fails, you'll see an error:
+
+```
+✖ No data source. Use --file <path>, set WORKFLOWY_SESSION_ID, or run `wf login`.
+```
+
+## Security Best Practices
+
+<Warning>
+  Your session cookie provides full access to your WorkFlowy account. Treat it like a password.
+</Warning>
+
+- **Never commit** your session ID to version control
+- **Use secrets management** in CI/CD environments (GitHub Secrets, environment variables, etc.)
+- **Rotate regularly** by updating your session ID when it expires (~6 months)
+- **Restrict access** to your config file with appropriate file permissions:
+
+```bash
+chmod 600 ~/.config/wf/config.json
+```
+
+## Troubleshooting
+
+### Session Expired
+
+If you see authentication errors, your session cookie may have expired:
+
+1. Get a fresh session cookie from your browser
+2. Run `wf login` again with the new cookie
+3. Or update the `WORKFLOWY_SESSION_ID` environment variable
+
+### Multiple Accounts
+
+To switch between WorkFlowy accounts:
+
+<CodeGroup>
+
+```bash Environment Variable
+# Use different session IDs for different accounts
+export WORKFLOWY_SESSION_ID=account_1_session_id
+wf -o account1.json
+
+export WORKFLOWY_SESSION_ID=account_2_session_id
+wf -o account2.json
+```
+
+```bash Config File
+# Overwrite the config file for each account
+wf login  # Enter account 1 session ID
+wf -o account1.json
+
+wf login  # Enter account 2 session ID
+wf -o account2.json
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<Card title="CLI Usage" icon="terminal" href="/cli-usage">
+  Learn how to use the CLI to export and filter your WorkFlowy data
+</Card>

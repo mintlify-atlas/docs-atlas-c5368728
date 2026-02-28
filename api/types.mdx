@@ -1,0 +1,203 @@
+---
+title: 'Types'
+description: 'TypeScript interfaces and type definitions'
+---
+
+## WfNode
+
+Represents a node (bullet point) in a WorkFlowy outline.
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the node.
+</ResponseField>
+
+<ResponseField name="nm" type="string" required>
+  Node name/content (may contain HTML).
+</ResponseField>
+
+<ResponseField name="no" type="string">
+  Node notes (may contain HTML).
+</ResponseField>
+
+<ResponseField name="ct" type="number" required>
+  Creation timestamp in seconds since epoch.
+</ResponseField>
+
+<ResponseField name="lm" type="number" required>
+  Last modified timestamp in seconds since epoch.
+</ResponseField>
+
+<ResponseField name="lmb" type="number">
+  Last modified by user ID.
+</ResponseField>
+
+<ResponseField name="cb" type="number">
+  Created by user ID.
+</ResponseField>
+
+<ResponseField name="cp" type="number">
+  Completion timestamp in seconds since epoch (if node is completed).
+</ResponseField>
+
+<ResponseField name="ch" type="WfNode[]">
+  Array of child nodes.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, unknown>">
+  Additional metadata attached to the node.
+</ResponseField>
+
+```typescript
+import type { WfNode } from 'workflowy-scraper'
+
+const node: WfNode = {
+  id: '12345',
+  nm: 'My Task',
+  no: 'Some notes',
+  ct: 1640000000,
+  lm: 1640001000,
+  ch: []
+}
+```
+
+## MatchMode
+
+Defines how pattern matching is performed when querying nodes.
+
+```typescript
+type MatchMode = 'contains' | 'exact' | 'regex' | 'starts-with'
+```
+
+- `'contains'`: Node name/notes contain the pattern
+- `'exact'`: Node name/notes exactly match the pattern
+- `'regex'`: Pattern is treated as a regular expression
+- `'starts-with'`: Node name/notes start with the pattern
+
+## QueryOptions
+
+Options for querying nodes in a WorkFlowy tree.
+
+<ResponseField name="mode" type="MatchMode" required>
+  Matching strategy to use.
+</ResponseField>
+
+<ResponseField name="pattern" type="string" required>
+  Pattern to match against node names and notes.
+</ResponseField>
+
+```typescript
+import type { QueryOptions } from 'workflowy-scraper'
+
+const options: QueryOptions = {
+  mode: 'contains',
+  pattern: 'TODO'
+}
+```
+
+## AuxTreeInfo
+
+Represents a shared auxiliary tree (shared list) in WorkFlowy.
+
+<ResponseField name="rootProject" type="WfNode" required>
+  Root node of the shared tree.
+</ResponseField>
+
+<ResponseField name="rootProjectChildren" type="WfNode[]" required>
+  Direct children of the root node.
+</ResponseField>
+
+<ResponseField name="shareId" type="string">
+  Unique identifier for the shared tree.
+</ResponseField>
+
+<ResponseField name="shareType" type="string">
+  Type of sharing (e.g., "url", "email").
+</ResponseField>
+
+<ResponseField name="accessToken" type="string">
+  Access token for the shared tree.
+</ResponseField>
+
+<ResponseField name="permissionLevel" type="number">
+  Permission level for the current user.
+</ResponseField>
+
+<ResponseField name="initialMostRecentOperationTransactionId" type="string">
+  Transaction ID for the most recent operation.
+</ResponseField>
+
+```typescript
+import type { AuxTreeInfo } from 'workflowy-scraper'
+
+const auxTree: AuxTreeInfo = {
+  rootProject: { id: 'root', nm: 'Shared List', ct: 0, lm: 0 },
+  rootProjectChildren: [],
+  shareId: 'abc123'
+}
+```
+
+## MainTreeInfo
+
+Represents the main WorkFlowy tree for a user account.
+
+<ResponseField name="rootProject" type="WfNode | null" required>
+  Root node of the main tree, or `null` if not available.
+</ResponseField>
+
+<ResponseField name="rootProjectChildren" type="WfNode[]" required>
+  Direct children of the root node.
+</ResponseField>
+
+<ResponseField name="dateJoinedTimestampInSeconds" type="number" required>
+  Unix timestamp when the user joined WorkFlowy.
+</ResponseField>
+
+<ResponseField name="initialMostRecentOperationTransactionId" type="string">
+  Transaction ID for the most recent operation.
+</ResponseField>
+
+```typescript
+import type { MainTreeInfo } from 'workflowy-scraper'
+
+const mainTree: MainTreeInfo = {
+  rootProject: { id: 'root', nm: 'My WorkFlowy', ct: 0, lm: 0 },
+  rootProjectChildren: [],
+  dateJoinedTimestampInSeconds: 1640000000
+}
+```
+
+## InitData
+
+Represents the initialization data returned by the WorkFlowy API.
+
+<ResponseField name="projectTreeData" type="object" required>
+  Container for all tree data.
+</ResponseField>
+
+<ResponseField name="projectTreeData.auxiliaryProjectTreeInfos" type="AuxTreeInfo[]" required>
+  Array of shared trees accessible to the user.
+</ResponseField>
+
+<ResponseField name="projectTreeData.clientId" type="string" required>
+  Client identifier for the current session.
+</ResponseField>
+
+<ResponseField name="projectTreeData.mainProjectTreeInfo" type="MainTreeInfo" required>
+  The user's main WorkFlowy tree.
+</ResponseField>
+
+```typescript
+import type { InitData } from 'workflowy-scraper'
+
+const data: InitData = {
+  projectTreeData: {
+    auxiliaryProjectTreeInfos: [],
+    clientId: 'client-123',
+    mainProjectTreeInfo: {
+      rootProject: null,
+      rootProjectChildren: [],
+      dateJoinedTimestampInSeconds: 1640000000
+    }
+  }
+}
+```

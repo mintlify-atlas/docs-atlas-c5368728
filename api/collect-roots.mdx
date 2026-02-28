@@ -1,0 +1,97 @@
+---
+title: collectAllRoots & collectAuxRoots
+description: Collect root nodes from WorkFlowy trees
+---
+
+## collectAllRoots
+
+Collects all top-level nodes from both the main tree and auxiliary (shared/team) trees.
+
+### Signature
+
+```typescript
+function collectAllRoots(data: InitData): WfNode[]
+```
+
+### Parameters
+
+<ParamField path="data" type="InitData" required>
+  The initialization data object returned from WorkFlowy API containing main and auxiliary project trees
+</ParamField>
+
+### Returns
+
+An array of all root-level nodes, combining:
+- Main project tree root children
+- Auxiliary (shared/team) tree root nodes
+
+### Example
+
+```typescript
+import { WorkFlowyClient, collectAllRoots } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient('your-session-id')
+const data = await client.fetchInitData()
+const allRoots = collectAllRoots(data)
+
+console.log(`Total root nodes: ${allRoots.length}`)
+// Includes nodes from your personal tree + shared trees
+```
+
+### Source
+
+Defined in `src/export/filesystem.ts:13`
+
+---
+
+## collectAuxRoots
+
+Assembles auxiliary (shared/team) trees into a single list of top-level nodes.
+
+### Signature
+
+```typescript
+function collectAuxRoots(data: InitData): WfNode[]
+```
+
+### Parameters
+
+<ParamField path="data" type="InitData" required>
+  The initialization data object returned from WorkFlowy API
+</ParamField>
+
+### Returns
+
+An array containing only the auxiliary (shared/team) tree root nodes, excluding the main personal tree.
+
+### Example
+
+```typescript
+import { WorkFlowyClient, collectAuxRoots } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient('your-session-id')
+const data = await client.fetchInitData()
+const sharedRoots = collectAuxRoots(data)
+
+console.log(`Shared tree count: ${sharedRoots.length}`)
+sharedRoots.forEach(root => {
+  console.log(`Shared tree: ${root.nm}`)
+})
+```
+
+### Use Cases
+
+- Processing only shared/team WorkFlowy trees
+- Separating personal vs. collaborative content
+- Exporting team spaces independently
+
+### Source
+
+Defined in `src/export/filesystem.ts:25`
+
+---
+
+## Related Functions
+
+- [buildMarkdown](/api/build-markdown) - Convert collected nodes to markdown
+- [buildJson](/api/build-json) - Convert collected nodes to JSON

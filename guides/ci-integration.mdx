@@ -1,0 +1,550 @@
+---
+title: CI/CD Integration
+description: Use WorkFlowy Scraper in continuous integration and deployment pipelines
+---
+
+This guide shows you how to integrate WorkFlowy Scraper into your CI/CD workflows to automate documentation generation, testing, and deployment.
+
+## Authentication in CI
+
+For CI environments, use the `WORKFLOWY_SESSION_ID` environment variable instead of interactive login.
+
+<Steps>
+  <Step title="Get your session ID">
+    <Tabs>
+      <Tab title="Browser DevTools">
+        1. Open [WorkFlowy](https://workflowy.com) in your browser
+        2. Open DevTools (F12 or Right-click → Inspect)
+        3. Go to **Application** tab → **Cookies** → `https://workflowy.com`
+        4. Find `sessionid` and copy its value
+      </Tab>
+      <Tab title="Using wf login">
+        Run locally first to test:
+        ```bash
+        wf login
+        # Paste your session ID when prompted
+        ```
+        Then retrieve it from the config:
+        ```bash
+        cat ~/.config/wf/config.json
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Store as CI secret">
+    Add `WORKFLOWY_SESSION_ID` as a secret in your CI platform:
+
+    <Tabs>
+      <Tab title="GitHub Actions">
+        1. Go to repository **Settings** → **Secrets and variables** → **Actions**
+        2. Click **New repository secret**
+        3. Name: `WORKFLOWY_SESSION_ID`
+        4. Value: Your session ID
+        5. Click **Add secret**
+      </Tab>
+
+      <Tab title="GitLab CI">
+        1. Go to **Settings** → **CI/CD** → **Variables**
+        2. Click **Add variable**
+        3. Key: `WORKFLOWY_SESSION_ID`
+        4. Value: Your session ID
+        5. Check **Mask variable**
+        6. Uncheck **Protect variable** (unless only for protected branches)
+      </Tab>
+
+      <Tab title="CircleCI">
+        1. Go to **Project Settings** → **Environment Variables**
+        2. Click **Add Environment Variable**
+        3. Name: `WORKFLOWY_SESSION_ID`
+        4. Value: Your session ID
+      </Tab>
+
+      <Tab title="Travis CI">
+        ```bash
+        travis encrypt WORKFLOWY_SESSION_ID="your_session_id" --add
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Use in workflow">
+    The environment variable is automatically detected by `wf` commands.
+  </Step>
+</Steps>
+
+<Warning>
+  Session cookies expire after ~6 months. Set a reminder to rotate your CI secret before it expires.
+</Warning>
+
+## GitHub Actions Examples
+
+### Daily Documentation Backup
+
+Automatically back up your WorkFlowy data and commit to the repository:
+
+```yaml .github/workflows/backup.yml
+name: WorkFlowy Backup
+
+on:
+  schedule:
+    # Daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install WorkFlowy Scraper
+        run: bun install -g workflowy-scraper
+
+      - name: Create backup
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: |
+          mkdir -p backups
+          wf fetch -o backups/workflowy_$(date +"%Y-%m-%d").json
+          wf -o backups/workflowy_$(date +"%Y-%m-%d").md
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          git diff --quiet && git diff --staged --quiet || (
+            git commit -m "chore: daily backup $(date +"%Y-%m-%d")"
+            git push
+          )
+```
+
+### Generate Docs from WorkFlowy
+
+Convert your WorkFlowy notes to documentation on every push:
+
+```yaml .github/workflows/docs.yml
+name: Generate Documentation
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies
+        run: bun install -g workflowy-scraper
+
+      - name: Export WorkFlowy sections
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: |
+          mkdir -p docs
+          
+          # Export different sections
+          wf "API Documentation" --exact -o docs/api.md
+          wf "User Guide" --exact -o docs/guide.md
+          wf "Changelog" --exact -o docs/changelog.md
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+```
+
+### Build and Test with WorkFlowy Data
+
+Use WorkFlowy data in your test suite:
+
+```yaml .github/workflows/test.yml
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Fetch test data from WorkFlowy
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: |
+          bun install -g workflowy-scraper
+          wf "Test Data" --exact --json -o tests/fixtures/workflowy-data.json
+
+      - name: Run tests
+        run: bun test
+```
+
+## GitLab CI Example
+
+```yaml .gitlab-ci.yml
+stages:
+  - backup
+  - deploy
+
+variables:
+  BACKUP_DIR: "backups"
+
+backup:workflowy:
+  stage: backup
+  image: oven/bun:latest
+  
+  before_script:
+    - bun install -g workflowy-scraper
+  
+  script:
+    - mkdir -p $BACKUP_DIR
+    - wf fetch -o $BACKUP_DIR/workflowy_$(date +"%Y-%m-%d").json
+    - wf -o $BACKUP_DIR/workflowy_$(date +"%Y-%m-%d").md
+  
+  artifacts:
+    paths:
+      - $BACKUP_DIR/
+    expire_in: 30 days
+  
+  only:
+    - schedules
+    - web
+
+deploy:docs:
+  stage: deploy
+  image: oven/bun:latest
+  
+  before_script:
+    - bun install -g workflowy-scraper
+  
+  script:
+    - mkdir -p public
+    - wf "Documentation" --exact -o public/index.md
+    - wf "API Reference" --exact -o public/api.md
+  
+  artifacts:
+    paths:
+      - public
+  
+  only:
+    - main
+```
+
+## CircleCI Example
+
+```yaml .circleci/config.yml
+version: 2.1
+
+workflows:
+  backup-and-deploy:
+    jobs:
+      - backup:
+          context: workflowy-secrets
+      - deploy:
+          context: workflowy-secrets
+          requires:
+            - backup
+
+jobs:
+  backup:
+    docker:
+      - image: oven/bun:latest
+    
+    steps:
+      - checkout
+      
+      - run:
+          name: Install WorkFlowy Scraper
+          command: bun install -g workflowy-scraper
+      
+      - run:
+          name: Create backup
+          command: |
+            mkdir -p backups
+            wf fetch -o backups/workflowy_$(date +"%Y-%m-%d").json
+      
+      - persist_to_workspace:
+          root: .
+          paths:
+            - backups
+  
+  deploy:
+    docker:
+      - image: oven/bun:latest
+    
+    steps:
+      - checkout
+      
+      - attach_workspace:
+          at: .
+      
+      - run:
+          name: Install WorkFlowy Scraper
+          command: bun install -g workflowy-scraper
+      
+      - run:
+          name: Generate documentation
+          command: |
+            mkdir -p docs
+            wf "Docs" --exact -o docs/README.md
+      
+      - run:
+          name: Deploy
+          command: |
+            # Your deployment commands here
+            echo "Deploying documentation..."
+```
+
+## Advanced Patterns
+
+### Matrix Builds
+
+Export multiple WorkFlowy sections in parallel:
+
+```yaml .github/workflows/export-matrix.yml
+name: Export Multiple Sections
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        section:
+          - name: "API Documentation"
+            file: "api.md"
+          - name: "User Guide"
+            file: "guide.md"
+          - name: "Tutorials"
+            file: "tutorials.md"
+          - name: "FAQ"
+            file: "faq.md"
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+      
+      - name: Install WorkFlowy Scraper
+        run: bun install -g workflowy-scraper
+      
+      - name: Export ${{ matrix.section.name }}
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: |
+          mkdir -p docs
+          wf "${{ matrix.section.name }}" --exact -o docs/${{ matrix.section.file }}
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.section.file }}
+          path: docs/${{ matrix.section.file }}
+```
+
+### Conditional Exports
+
+Only export when WorkFlowy data changes:
+
+```yaml .github/workflows/smart-backup.yml
+name: Smart Backup
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+      
+      - name: Install WorkFlowy Scraper
+        run: bun install -g workflowy-scraper
+      
+      - name: Fetch current data
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: |
+          wf fetch -o current.json
+      
+      - name: Check for changes
+        id: changes
+        run: |
+          if [ -f backups/latest.json ]; then
+            if cmp -s current.json backups/latest.json; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+            else
+              echo "changed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Save backup
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          mkdir -p backups
+          cp current.json backups/workflowy_$(date +"%Y-%m-%d_%H-%M-%S").json
+          cp current.json backups/latest.json
+      
+      - name: Commit changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          git commit -m "chore: backup updated $(date +"%Y-%m-%d %H:%M:%S")"
+          git push
+```
+
+### Multi-format Export
+
+Export in multiple formats simultaneously:
+
+```yaml .github/workflows/multi-format.yml
+name: Multi-format Export
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+      
+      - name: Install WorkFlowy Scraper
+        run: bun install -g workflowy-scraper
+      
+      - name: Cache WorkFlowy data
+        env:
+          WORKFLOWY_SESSION_ID: ${{ secrets.WORKFLOWY_SESSION_ID }}
+        run: wf fetch -o cache.json
+      
+      - name: Export to different formats
+        run: |
+          mkdir -p exports
+          
+          # Full exports
+          wf -f cache.json -o exports/full.md
+          wf -f cache.json --json -o exports/full.json
+          
+          # Filtered exports
+          wf "Projects" --exact -f cache.json -o exports/projects.md
+          wf "Projects" --exact -f cache.json --json -o exports/projects.json
+          
+          wf "Archive" --exact -f cache.json -o exports/archive.md
+          wf "Archive" --exact -f cache.json --json -o exports/archive.json
+      
+      - name: Upload exports
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflowy-exports
+          path: exports/
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Session expired error">
+    Your `WORKFLOWY_SESSION_ID` has expired (they last ~6 months).
+    
+    **Solution:**
+    1. Get a new session ID from your browser
+    2. Update the secret in your CI platform
+    3. Re-run the workflow
+  </Accordion>
+
+  <Accordion title="Command not found: wf">
+    The WorkFlowy Scraper CLI is not installed or not in PATH.
+    
+    **Solution:**
+    ```yaml
+    - name: Install WorkFlowy Scraper
+      run: bun install -g workflowy-scraper
+    ```
+  </Accordion>
+
+  <Accordion title="Empty or invalid exports">
+    The filter pattern might not match any nodes, or there's an authentication issue.
+    
+    **Solution:**
+    1. Test the filter locally first
+    2. Verify `WORKFLOWY_SESSION_ID` is set correctly
+    3. Add debug output:
+    ```yaml
+    - name: Debug export
+      run: |
+        wf "Your Pattern" --exact -o test.md
+        cat test.md
+        wc -l test.md
+    ```
+  </Accordion>
+
+  <Accordion title="Rate limiting">
+    Making too many requests to WorkFlowy API.
+    
+    **Solution:**
+    Use the fetch-once pattern:
+    ```yaml
+    - name: Fetch once
+      run: wf fetch -o cache.json
+    
+    - name: Use cached data
+      run: |
+        wf "Section 1" -f cache.json -o s1.md
+        wf "Section 2" -f cache.json -o s2.md
+        wf "Section 3" -f cache.json -o s3.md
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Backup Workflows" icon="clock" href="/guides/backup-workflow">
+    Set up automated backup strategies
+  </Card>
+  <Card title="Filtering Examples" icon="filter" href="/guides/filtering-examples">
+    Learn advanced filtering techniques
+  </Card>
+</CardGroup>

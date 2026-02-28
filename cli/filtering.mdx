@@ -1,0 +1,376 @@
+---
+title: 'Filtering'
+description: 'Advanced guide to filtering WorkFlowy nodes by name pattern'
+---
+
+The export command supports filtering nodes by name using four different match modes. This guide explains how filtering works and demonstrates each mode with examples.
+
+## How Filtering Works
+
+### Depth-First Search
+
+The filter performs a **depth-first search** across your entire WorkFlowy tree:
+
+1. Starts at root nodes (both main tree and shared/auxiliary trees)
+2. Tests each node's name against the pattern
+3. When a match is found:
+   - The node and its **entire subtree** are included in the output
+   - Children of the matched node are **not searched further**
+4. Continues searching siblings and other branches
+
+<Note>
+**Key behavior:** Matching is on the **node name only**. Node content/notes are not searched. HTML tags in names are stripped before matching.
+</Note>
+
+### Visual Example
+
+Given this tree:
+
+```
+Work
+├── Projects
+│   ├── Alpha
+│   └── Beta
+└── Archive
+    └── Alpha (old)
+Hobbies
+└── Reading
+```
+
+When you run `wf "Alpha"`:
+- Searches all nodes depth-first
+- Finds `Alpha` under `Projects` → includes it (but not `Beta`)
+- Finds `Alpha (old)` under `Archive` → includes it
+- Does NOT include `Projects`, `Work`, or `Archive` (they don't match)
+
+**Result:** Only the two `Alpha` nodes with their subtrees.
+
+## Match Modes
+
+### Contains (Default)
+
+Matches nodes whose name **contains** the pattern anywhere.
+
+**Syntax:**
+```bash
+wf "pattern"
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash Match "Academics"
+wf "Academics" -o output.md
+```
+
+```bash Case-sensitive
+wf "TODO" -o todos.md
+```
+</CodeGroup>
+
+**Matches:**
+- `Academics`
+- `Academics Root`
+- `My Academics`
+- `Old Academics Backup`
+
+**Does NOT match:**
+- `Academic` (missing 's')
+- `academics` (case-sensitive)
+- `Acad` (partial)
+
+<Tip>
+Contains mode is great for exploratory searches when you're not sure of exact node names.
+</Tip>
+
+### Exact
+
+Matches nodes whose name **exactly equals** the pattern (case-sensitive).
+
+**Syntax:**
+```bash
+wf "pattern" --exact
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash Exact match
+wf "Academics Root" --exact -o academics.md
+```
+
+```bash Single word
+wf "TODO" --exact -o todo.md
+```
+</CodeGroup>
+
+**Given pattern:** `"Academics Root"`
+
+**Matches:**
+- `Academics Root`
+
+**Does NOT match:**
+- `Academics` (missing "Root")
+- `Academics Root 2024` (extra text)
+- `My Academics Root` (prefix added)
+- `academics root` (case-sensitive)
+
+<Tip>
+Use exact mode when you know the precise node name and want to avoid false positives.
+</Tip>
+
+### Starts With
+
+Matches nodes whose name **starts with** the pattern.
+
+**Syntax:**
+```bash
+wf "pattern" --starts-with
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash Prefix match
+wf "Project" --starts-with -o projects.md
+```
+
+```bash Abbreviation
+wf "Acad" --starts-with -o academics.md
+```
+</CodeGroup>
+
+**Given pattern:** `"Project"`
+
+**Matches:**
+- `Project`
+- `Project Alpha`
+- `Projects`
+- `Project: Beta Launch`
+
+**Does NOT match:**
+- `My Project` (doesn't start with pattern)
+- `Old Projects Archive` (prefix mismatch)
+- `project` (case-sensitive)
+
+<Tip>
+Starts-with is useful for filtering by prefixes like "2024-", "DONE:", or "Project".
+</Tip>
+
+### Regex
+
+Matches nodes using a **JavaScript regular expression**.
+
+**Syntax:**
+```bash
+wf "regex_pattern" --regex
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash Exact with anchors
+wf "^Work$" --regex -o work.md
+```
+
+```bash Multiple options
+wf "Project (Alpha|Beta)" --regex -o projects.md
+```
+
+```bash Date pattern
+wf "^202[3-6]-" --regex -o recent.md
+```
+
+```bash Case-insensitive (with flag)
+wf "(?i)todo" --regex -o todos.md
+```
+</CodeGroup>
+
+**Common patterns:**
+
+| Pattern | Matches | Example |
+|---------|---------|----------|
+| `^Work$` | Exactly "Work" | `Work` |
+| `^Project.*` | Starts with "Project" | `Project Alpha`, `Projects` |
+| `.*Archive$` | Ends with "Archive" | `Old Archive`, `2024 Archive` |
+| `Alpha\|Beta` | "Alpha" OR "Beta" | `Alpha`, `Beta` |
+| `(?i)todo` | Case-insensitive "todo" | `TODO`, `Todo`, `todo` |
+| `^\d{4}-` | Starts with 4 digits + dash | `2024-Q1`, `2023-Goals` |
+
+<Warning>
+Regex patterns must be valid JavaScript regex. Invalid patterns will cause the command to fail.
+</Warning>
+
+<Tip>
+Use regex mode for complex patterns like dates, tags, or when you need case-insensitive matching.
+</Tip>
+
+## Match Mode Comparison
+
+Given these nodes:
+```
+Alpha
+Project Alpha
+Alpha Project
+Alpha (old)
+Beta
+```
+
+| Command | Matches |
+|---------|----------|
+| `wf "Alpha"` | All 4 Alpha nodes |
+| `wf "Alpha" --exact` | Only `Alpha` |
+| `wf "Alpha" --starts-with` | `Alpha`, `Alpha Project`, `Alpha (old)` |
+| `wf "^Alpha$" --regex` | Only `Alpha` |
+| `wf "Alpha\|Beta" --regex` | All 5 nodes |
+
+## Practical Examples
+
+### Export a Specific Project
+
+```bash
+wf "Project Alpha" --exact -o alpha.md
+```
+
+Use exact mode to get only the "Project Alpha" node and its full subtree.
+
+### Find All TODOs
+
+```bash
+wf "TODO" -o todos.md
+```
+
+Contains mode finds nodes like:
+- `TODO: Fix bug`
+- `Important TODO`
+- `TODO`
+
+### Export All 2024 Nodes
+
+```bash
+wf "2024" --starts-with -o 2024.md
+```
+
+Matches:
+- `2024-Q1`
+- `2024 Goals`
+- `2024-01-15 Meeting`
+
+### Complex Filtering with Regex
+
+<CodeGroup>
+```bash Multiple projects
+wf "^(Project Alpha|Project Beta)$" --regex -o projects.md
+```
+
+```bash Date range (2023-2026)
+wf "^202[3-6]-" --regex -o recent.md
+```
+
+```bash Tags
+wf "#(important|urgent)" --regex -o priority.md
+```
+</CodeGroup>
+
+## Performance Tips
+
+<AccordionGroup>
+<Accordion title="Use exact mode when possible">
+  Exact matching is fastest since it short-circuits after finding a match.
+</Accordion>
+
+<Accordion title="Cache with fetch for repeated filtering">
+  ```bash
+  wf fetch -o data.json
+  wf "pattern1" -f data.json -o out1.md
+  wf "pattern2" -f data.json -o out2.md
+  ```
+  
+  This avoids re-fetching from the API for each filter operation.
+</Accordion>
+
+<Accordion title="Regex can be slow on large trees">
+  Complex regex patterns may slow down filtering on trees with 10,000+ nodes. Use simpler patterns when possible.
+</Accordion>
+</AccordionGroup>
+
+## Output Details
+
+After filtering, the CLI reports:
+
+```
+◇  Matched 3 nodes (47 sub-nodes)
+```
+
+- **Matched nodes:** Number of nodes that matched the pattern
+- **Sub-nodes:** Total count of children under all matched nodes
+
+**Total exported nodes** = matched + sub-nodes
+
+<Note>
+Sub-nodes are included automatically. You don't need to filter them separately.
+</Note>
+
+## HTML Tag Stripping
+
+WorkFlowy allows HTML formatting in node names. The filter strips these tags before matching:
+
+**Node name in WorkFlowy:**
+```html
+<b>Project</b> Alpha
+```
+
+**Matched as:**
+```
+Project Alpha
+```
+
+<Tip>
+Write your patterns against the plain text version of node names, not the HTML source.
+</Tip>
+
+## Common Pitfalls
+
+<AccordionGroup>
+<Accordion title="Case sensitivity">
+  All match modes are **case-sensitive** by default (except regex with `(?i)` flag).
+  
+  ```bash
+  wf "todo"        # Won't match "TODO"
+  wf "(?i)todo" --regex  # Matches "TODO", "Todo", "todo"
+  ```
+</Accordion>
+
+<Accordion title="Partial matches with exact mode">
+  Exact mode requires the **entire name** to match:
+  
+  ```bash
+  wf "Project" --exact  # Won't match "Project Alpha"
+  ```
+  
+  Use starts-with or contains instead.
+</Accordion>
+
+<Accordion title="Forgetting regex anchors">
+  Without anchors, regex matches anywhere in the string:
+  
+  ```bash
+  wf "Work" --regex     # Matches "Work", "My Work", "Workshop"
+  wf "^Work$" --regex   # Matches only "Work"
+  ```
+</Accordion>
+
+<Accordion title="Escaping special characters in regex">
+  Escape regex metacharacters like `.`, `*`, `+`, `?`, `[`, `]`, `(`, `)`, `{`, `}`, `|`, `\`, `^`, `$`:
+  
+  ```bash
+  wf "Project (Alpha)" --regex    # Error: invalid regex
+  wf "Project \(Alpha\)" --regex  # Correct
+  ```
+</Accordion>
+</AccordionGroup>
+
+## Related Commands
+
+- [export](/cli/export) - Main export command with filtering
+- [fetch](/cli/fetch) - Download data for offline filtering

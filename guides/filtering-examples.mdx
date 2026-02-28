@@ -1,0 +1,583 @@
+---
+title: Filtering Examples
+description: Real-world examples of filtering and extracting specific content from your WorkFlowy tree
+---
+
+This guide demonstrates practical filtering patterns using WorkFlowy Scraper's powerful search capabilities.
+
+## Understanding the Tree Structure
+
+Consider this example WorkFlowy tree:
+
+```
+Work
+├── Projects
+│   ├── Alpha
+│   └── Beta
+└── Archive
+    └── Alpha (old)
+Hobbies
+└── Reading
+```
+
+The filter performs a **depth-first search** across the entire tree. When a node matches, that node and its **full subtree** are included in the output.
+
+<Info>
+  Key behaviors:
+  - Matching is on **node name only** (not notes)
+  - HTML tags in node names are stripped before matching
+  - Children of matched nodes are included automatically
+</Info>
+
+## Match Modes
+
+WorkFlowy Scraper supports four matching modes:
+
+<Tabs>
+  <Tab title="Contains (default)">
+    Matches nodes whose name contains the pattern (case-insensitive).
+
+    ```bash
+    wf "Alpha"
+    ```
+
+    **Matches:**
+    - `Alpha`
+    - `Alpha (old)`
+    - `Alpha Project`
+    - `My Alpha Version`
+
+    **Output includes both:**
+    ```markdown
+    # Alpha
+    [All children of Alpha node]
+
+    # Alpha (old)
+    [All children of Alpha (old) node]
+    ```
+  </Tab>
+
+  <Tab title="Exact">
+    Matches nodes whose name exactly equals the pattern.
+
+    ```bash
+    wf "Projects" --exact
+    ```
+
+    **Matches:**
+    - `Projects` ✓
+
+    **Doesn't match:**
+    - `My Projects` ✗
+    - `Projects List` ✗
+
+    **Output:**
+    ```markdown
+    # Projects
+    ## Alpha
+    ## Beta
+    ```
+  </Tab>
+
+  <Tab title="Starts With">
+    Matches nodes whose name starts with the pattern.
+
+    ```bash
+    wf "Al" --starts-with
+    ```
+
+    **Matches:**
+    - `Alpha`
+    - `Alpha (old)`
+    - `Albert's Notes`
+
+    **Doesn't match:**
+    - `My Alpha`
+  </Tab>
+
+  <Tab title="Regex">
+    Matches nodes using regular expressions.
+
+    ```bash
+    wf "^Work$" --regex
+    ```
+
+    **Matches:**
+    - `Work` (exact word)
+
+    **Doesn't match:**
+    - `Work Notes`
+    - `My Work`
+
+    **Complex pattern:**
+    ```bash
+    wf "^(Alpha|Beta).*Project" --regex
+    ```
+  </Tab>
+</Tabs>
+
+## Common Filtering Patterns
+
+### Extract Top-Level Sections
+
+Export specific top-level areas of your WorkFlowy:
+
+<CodeGroup>
+
+```bash Single Section
+# Export just your Work section
+wf "Work" --exact -o work.md
+
+# Export Personal notes
+wf "Personal" --exact -o personal.md
+
+# Export a specific project
+wf "Project Alpha" --exact -o alpha.md
+```
+
+```bash Multiple Sections
+# First, fetch and cache the full tree
+wf fetch -o cache.json
+
+# Then export multiple sections from cache
+wf "Work" --exact -f cache.json -o work.md
+wf "Personal" --exact -f cache.json -o personal.md
+wf "Hobbies" --exact -f cache.json -o hobbies.md
+```
+
+```bash Script
+#!/bin/bash
+# export-sections.sh
+set -e
+
+echo "Fetching WorkFlowy data..."
+wf fetch -o cache.json
+
+SECTIONS=("Work" "Personal" "Projects" "Archive")
+
+for section in "${SECTIONS[@]}"; do
+    echo "Exporting: $section"
+    wf "$section" --exact -f cache.json -o "${section,,}.md"
+done
+
+echo "Done! Exported ${#SECTIONS[@]} sections"
+```
+
+</CodeGroup>
+
+### Filter by Time Period
+
+Extract notes from specific time periods (assuming date-based naming):
+
+```bash
+# Export all nodes containing "2024"
+wf "2024" -o notes-2024.md
+
+# Export Q1 notes
+wf "Q1" -o q1.md
+
+# Export specific month using regex
+wf "(January|Jan) 2024" --regex -o jan-2024.md
+
+# Export weekly notes
+wf "Week" --starts-with -o weekly-notes.md
+```
+
+### Project-Specific Exports
+
+Extract all nodes related to a specific project:
+
+<Steps>
+  <Step title="Find all project mentions">
+    ```bash
+    # Export all nodes containing project name
+    wf "Project Phoenix" -o phoenix.md
+    ```
+  </Step>
+
+  <Step title="Get exact project root">
+    ```bash
+    # Export just the project root and its children
+    wf "Project Phoenix" --exact -o phoenix-root.md
+    ```
+  </Step>
+
+  <Step title="Export project sections">
+    ```bash
+    # Cache the project
+    wf "Project Phoenix" --exact --json -o phoenix.json
+    
+    # Extract specific parts
+    wf "Tasks" --exact -f phoenix.json -o phoenix-tasks.md
+    wf "Documentation" --exact -f phoenix.json -o phoenix-docs.md
+    wf "Meeting Notes" --exact -f phoenix.json -o phoenix-meetings.md
+    ```
+  </Step>
+</Steps>
+
+### Tag-Based Filtering
+
+If you use tags in your WorkFlowy nodes:
+
+```bash
+# Find all nodes tagged with #urgent
+wf "#urgent" -o urgent.md
+
+# Find all TODOs
+wf "TODO" -o todos.md
+
+# Find completed items
+wf "DONE" -o completed.md
+
+# Multiple tags using regex
+wf "#(urgent|important|priority)" --regex -o high-priority.md
+```
+
+### Archive and Historical Data
+
+Extract archived or historical content:
+
+```bash
+# Export archive
+wf "Archive" --exact -o archive.md
+
+# Export old projects
+wf "old" -o old-projects.md
+
+# Export by year
+wf "2023" -o archive-2023.md
+
+# Everything marked as "done" or "completed"
+wf "(done|completed)" --regex -o finished.md
+```
+
+## Advanced Filtering Workflows
+
+### Multi-Stage Filtering
+
+Filter, then filter again from cached results:
+
+```bash
+# Step 1: Export a large section
+wf "Work" --exact --json -o work.json
+
+# Step 2: Extract specific subsections
+wf "Projects" --exact -f work.json -o work-projects.md
+wf "Archive" --exact -f work.json -o work-archive.md
+
+# Step 3: Further filter projects
+wf "Projects" --exact --json -f work.json -o projects.json
+wf "Alpha" --exact -f projects.json -o project-alpha.md
+wf "Beta" --exact -f projects.json -o project-beta.md
+```
+
+### Combine with CLI Tools
+
+Process WorkFlowy exports with standard Unix tools:
+
+<CodeGroup>
+
+```bash Search Content
+# Export and search for specific terms
+wf "Projects" --exact | grep -i "deadline"
+
+# Count tasks
+wf "TODO" | grep -c "TODO"
+
+# Find all mentions of a person
+wf | grep -i "@john"
+```
+
+```bash Text Processing
+# Export and count lines
+wf "Meeting Notes" --exact | wc -l
+
+# Get first 100 lines
+wf | head -100
+
+# Extract headers only
+wf | grep "^#"
+
+# Find all links
+wf | grep -o "https\?://[^ ]*"
+```
+
+```bash Data Analysis
+# Export as JSON and process with jq
+wf --json | jq '.[] | .name'
+
+# Count nodes
+wf --json | jq 'length'
+
+# Find nodes with notes
+wf --json | jq '.[] | select(.note != null)'
+
+# Extract all node names
+wf --json | jq -r '.. | .name? // empty'
+```
+
+</CodeGroup>
+
+### Dynamic Filtering Script
+
+Create a flexible filtering script:
+
+```bash filter-workflowy.sh
+#!/bin/bash
+# filter-workflowy.sh - Interactive WorkFlowy filter
+
+set -e
+
+echo "WorkFlowy Filter Tool"
+echo "====================\n"
+
+# Fetch data once
+echo "Fetching WorkFlowy data..."
+wf fetch -o /tmp/wf-cache.json
+echo "✓ Data cached\n"
+
+# Interactive menu
+PS3="Select an export option: "
+options=(
+    "All Work items"
+    "All Personal items"
+    "Current projects"
+    "Archived items"
+    "TODO items"
+    "Meeting notes"
+    "Custom filter"
+    "Quit"
+)
+
+select opt in "${options[@]}"; do
+    case $opt in
+        "All Work items")
+            wf "Work" --exact -f /tmp/wf-cache.json -o work.md
+            echo "✓ Exported to work.md"
+            ;;
+        "All Personal items")
+            wf "Personal" --exact -f /tmp/wf-cache.json -o personal.md
+            echo "✓ Exported to personal.md"
+            ;;
+        "Current projects")
+            wf "Projects" --exact -f /tmp/wf-cache.json -o projects.md
+            echo "✓ Exported to projects.md"
+            ;;
+        "Archived items")
+            wf "Archive" --exact -f /tmp/wf-cache.json -o archive.md
+            echo "✓ Exported to archive.md"
+            ;;
+        "TODO items")
+            wf "TODO" -f /tmp/wf-cache.json -o todos.md
+            echo "✓ Exported to todos.md"
+            ;;
+        "Meeting notes")
+            wf "Meeting" -f /tmp/wf-cache.json -o meetings.md
+            echo "✓ Exported to meetings.md"
+            ;;
+        "Custom filter")
+            read -p "Enter search pattern: " pattern
+            read -p "Match mode (contains/exact/starts-with/regex) [contains]: " mode
+            mode=${mode:-contains}
+            
+            flags=""
+            case $mode in
+                exact) flags="--exact" ;;
+                starts-with) flags="--starts-with" ;;
+                regex) flags="--regex" ;;
+            esac
+            
+            output="custom-$(date +%s).md"
+            wf "$pattern" $flags -f /tmp/wf-cache.json -o "$output"
+            echo "✓ Exported to $output"
+            ;;
+        "Quit")
+            rm /tmp/wf-cache.json
+            echo "Goodbye!"
+            break
+            ;;
+        *)
+            echo "Invalid option"
+            ;;
+    esac
+done
+```
+
+## Real-World Use Cases
+
+### Knowledge Base Export
+
+Extract different areas of a personal knowledge base:
+
+```bash kb-export.sh
+#!/bin/bash
+# Export knowledge base sections
+
+OUTPUT_DIR="knowledge-base"
+mkdir -p "$OUTPUT_DIR"
+
+echo "Exporting knowledge base..."
+
+# Cache the full tree
+wf fetch -o /tmp/kb-cache.json
+
+# Export by category
+wf "Technical" --exact -f /tmp/kb-cache.json -o "$OUTPUT_DIR/technical.md"
+wf "Tutorials" --exact -f /tmp/kb-cache.json -o "$OUTPUT_DIR/tutorials.md"
+wf "Reference" --exact -f /tmp/kb-cache.json -o "$OUTPUT_DIR/reference.md"
+wf "Ideas" --exact -f /tmp/kb-cache.json -o "$OUTPUT_DIR/ideas.md"
+
+# Export by topic
+wf "Programming" -f /tmp/kb-cache.json -o "$OUTPUT_DIR/programming.md"
+wf "Design" -f /tmp/kb-cache.json -o "$OUTPUT_DIR/design.md"
+wf "Business" -f /tmp/kb-cache.json -o "$OUTPUT_DIR/business.md"
+
+echo "✓ Knowledge base exported to $OUTPUT_DIR/"
+ls -lh "$OUTPUT_DIR"
+```
+
+### Research Notes Organization
+
+Extract research notes by topic and status:
+
+```bash research-export.sh
+#!/bin/bash
+# Export research notes
+
+RESEARCH_DIR="research-$(date +%Y%m%d)"
+mkdir -p "$RESEARCH_DIR"
+
+echo "Exporting research notes..."
+
+# Get research root
+wf "Research" --exact --json -o research-cache.json
+
+# Export by status
+wf "In Progress" -f research-cache.json -o "$RESEARCH_DIR/in-progress.md"
+wf "To Review" -f research-cache.json -o "$RESEARCH_DIR/to-review.md"
+wf "Published" -f research-cache.json -o "$RESEARCH_DIR/published.md"
+
+# Export by topic
+wf "Machine Learning" -f research-cache.json -o "$RESEARCH_DIR/ml.md"
+wf "Data Science" -f research-cache.json -o "$RESEARCH_DIR/data-science.md"
+
+# Export literature notes
+wf "Paper:" --starts-with -f research-cache.json -o "$RESEARCH_DIR/papers.md"
+wf "Book:" --starts-with -f research-cache.json -o "$RESEARCH_DIR/books.md"
+
+echo "✓ Research notes exported to $RESEARCH_DIR/"
+```
+
+### Meeting Notes Extraction
+
+Extract and organize meeting notes:
+
+```bash meeting-notes.sh
+#!/bin/bash
+# Extract meeting notes by date and team
+
+MEETINGS_DIR="meetings"
+mkdir -p "$MEETINGS_DIR"
+
+# Cache meetings section
+wf "Meetings" --exact --json -o meetings-cache.json
+
+# Current year meetings
+CURRENT_YEAR=$(date +%Y)
+wf "$CURRENT_YEAR" -f meetings-cache.json -o "$MEETINGS_DIR/meetings-$CURRENT_YEAR.md"
+
+# By team
+wf "Engineering" -f meetings-cache.json -o "$MEETINGS_DIR/engineering-meetings.md"
+wf "Product" -f meetings-cache.json -o "$MEETINGS_DIR/product-meetings.md"
+wf "All Hands" -f meetings-cache.json -o "$MEETINGS_DIR/all-hands.md"
+
+# Recent meetings (by month)
+CURRENT_MONTH=$(date +"%B %Y")
+wf "$CURRENT_MONTH" -f meetings-cache.json -o "$MEETINGS_DIR/current-month.md"
+
+echo "✓ Meeting notes exported to $MEETINGS_DIR/"
+```
+
+## Tips and Best Practices
+
+<AccordionGroup>
+  <Accordion title="Performance: Cache once, filter many">
+    When running multiple filters, fetch the data once and reuse it:
+
+    ```bash
+    # Good: Fetch once
+    wf fetch -o cache.json
+    wf "Section1" -f cache.json -o s1.md
+    wf "Section2" -f cache.json -o s2.md
+    wf "Section3" -f cache.json -o s3.md
+
+    # Bad: Fetch multiple times
+    wf "Section1" -o s1.md  # API call
+    wf "Section2" -o s2.md  # API call
+    wf "Section3" -o s3.md  # API call
+    ```
+  </Accordion>
+
+  <Accordion title="Testing filters before scripts">
+    Test your filter patterns interactively before adding to scripts:
+
+    ```bash
+    # Test with stdout first
+    wf "Your Pattern" --exact
+
+    # Check the output
+    wf "Your Pattern" --exact | head -20
+
+    # Count results
+    wf "Your Pattern" --exact | wc -l
+
+    # Once satisfied, save to file
+    wf "Your Pattern" --exact -o output.md
+    ```
+  </Accordion>
+
+  <Accordion title="Handling special characters">
+    Use quotes and escaping for special characters:
+
+    ```bash
+    # Spaces
+    wf "Project Alpha" --exact
+
+    # Special chars in regex
+    wf "\[Important\]" --regex
+
+    # Parentheses
+    wf "Alpha (old)" --exact
+
+    # Shell variables
+    PROJECT="Alpha"
+    wf "$PROJECT" --exact
+    ```
+  </Accordion>
+
+  <Accordion title="Debugging filters">
+    Use JSON output to inspect the structure:
+
+    ```bash
+    # See what's matched
+    wf "Pattern" --json | jq '.[] | .name'
+
+    # Count matches
+    wf "Pattern" --json | jq 'length'
+
+    # Inspect full structure
+    wf "Pattern" --json | jq '.[0]'
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Backup Workflows" icon="clock" href="/guides/backup-workflow">
+    Automate exports with scheduled backups
+  </Card>
+  <Card title="CI Integration" icon="gears" href="/guides/ci-integration">
+    Use filtering in CI/CD pipelines
+  </Card>
+</CardGroup>

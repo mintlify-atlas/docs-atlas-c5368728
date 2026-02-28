@@ -1,0 +1,109 @@
+---
+title: Installation
+description: Install WorkFlowy Scraper via npm, yarn, pnpm, or bun
+---
+
+## Install the Package
+
+WorkFlowy Scraper is available as an npm package. Choose your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install -g workflowy-scraper
+```
+
+```bash yarn
+yarn global add workflowy-scraper
+```
+
+```bash pnpm
+pnpm add -g workflowy-scraper
+```
+
+```bash bun
+bun install -g workflowy-scraper
+```
+
+</CodeGroup>
+
+<Note>
+  The `-g` flag installs the package globally, making the `wf` command available system-wide.
+</Note>
+
+## Verify Installation
+
+Confirm the installation by checking the version:
+
+```bash
+wf --version
+```
+
+You should see the current version number (e.g., `0.1.4`).
+
+## Local Installation
+
+If you prefer to install locally within a project:
+
+<CodeGroup>
+
+```bash npm
+npm install workflowy-scraper
+```
+
+```bash yarn
+yarn add workflowy-scraper
+```
+
+```bash pnpm
+pnpm add workflowy-scraper
+```
+
+```bash bun
+bun add workflowy-scraper
+```
+
+</CodeGroup>
+
+Then run the CLI via npx or your package manager:
+
+```bash
+npx wf
+# or
+bun wf
+```
+
+## TypeScript Support
+
+WorkFlowy Scraper is written in TypeScript and includes full type definitions. TypeScript 5+ is required as a peer dependency if you're using the package as a library:
+
+```json package.json
+{
+  "dependencies": {
+    "workflowy-scraper": "^0.1.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
+```
+
+## Next Steps
+
+<Steps>
+  <Step title="Set up authentication">
+    Configure your WorkFlowy session cookie to access your data.
+    
+    <Card title="Authentication Guide" icon="key" href="/authentication">
+      Learn how to set up your session ID
+    </Card>
+  </Step>
+  
+  <Step title="Start using the CLI">
+    Once authenticated, you're ready to export your WorkFlowy data.
+    
+    <Card title="CLI Usage" icon="terminal" href="/cli-usage">
+      Explore the command-line interface
+    </Card>
+  </Step>
+</Steps>

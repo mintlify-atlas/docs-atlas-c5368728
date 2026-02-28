@@ -1,0 +1,186 @@
+---
+title: 'walkNodes'
+description: 'Traverse all nodes in the tree with a callback function'
+---
+
+## Function Signature
+
+```typescript
+function walkNodes(
+  nodes: WfNode[],
+  callback: (node: WfNode, depth: number) => void,
+  depth?: number
+): void
+```
+
+Invokes a callback function for every node in the tree using depth-first traversal.
+
+## Parameters
+
+<ParamField path="nodes" type="WfNode[]" required>
+  Array of root nodes to walk through
+</ParamField>
+
+<ParamField path="callback" type="(node: WfNode, depth: number) => void" required>
+  Function called for each node in the tree
+  
+  <Expandable title="Callback parameters">
+    <ParamField path="node" type="WfNode">
+      The current node being visited
+    </ParamField>
+    
+    <ParamField path="depth" type="number">
+      The depth level of the current node (0 for root nodes)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="depth" type="number" default="0">
+  Initial depth level (used for recursive calls, typically left as default)
+</ParamField>
+
+## Returns
+
+`void` - This function does not return a value
+
+## Behavior
+
+- **Depth-First**: Processes parent before children
+- **Recursive**: Automatically traverses child nodes
+- **Depth Tracking**: Maintains accurate depth level for each node
+- **Side Effects**: Designed for callbacks with side effects (logging, collecting, etc.)
+
+## Examples
+
+### Print Tree Structure
+
+Display the entire tree with indentation:
+
+```typescript
+import { walkNodes } from 'workflowy-scraper'
+
+walkNodes(nodes, (node, depth) => {
+  const indent = '  '.repeat(depth)
+  console.log(`${indent}${node.nm}`)
+})
+```
+
+Output:
+```
+Root Node
+  Child 1
+    Grandchild 1
+    Grandchild 2
+  Child 2
+```
+
+### Collect All Node Names
+
+Gather all node names into an array:
+
+```typescript
+const names: string[] = []
+
+walkNodes(nodes, (node) => {
+  names.push(node.nm)
+})
+
+console.log(names)
+```
+
+### Filter by Depth
+
+Process only nodes at a specific depth:
+
+```typescript
+const level2Nodes: WfNode[] = []
+
+walkNodes(nodes, (node, depth) => {
+  if (depth === 2) {
+    level2Nodes.push(node)
+  }
+})
+```
+
+### Generate Markdown
+
+Convert the tree to markdown format:
+
+```typescript
+import { stripHtml } from 'workflowy-scraper'
+
+let markdown = ''
+
+walkNodes(nodes, (node, depth) => {
+  const indent = '  '.repeat(depth)
+  const cleanName = stripHtml(node.nm)
+  markdown += `${indent}- ${cleanName}\n`
+})
+
+console.log(markdown)
+```
+
+### Count Nodes by Depth
+
+Analyze tree depth distribution:
+
+```typescript
+const depthCounts: Record<number, number> = {}
+
+walkNodes(nodes, (node, depth) => {
+  depthCounts[depth] = (depthCounts[depth] || 0) + 1
+})
+
+console.log('Depth distribution:', depthCounts)
+// { 0: 1, 1: 5, 2: 12, 3: 8 }
+```
+
+### Extract Metadata
+
+Collect nodes with specific metadata:
+
+```typescript
+const tagged: WfNode[] = []
+
+walkNodes(nodes, (node) => {
+  if (node.metadata?.tags) {
+    tagged.push(node)
+  }
+})
+```
+
+### Combine with queryNodes
+
+Search and then traverse results:
+
+```typescript
+import { queryNodes, walkNodes } from 'workflowy-scraper'
+
+// Find all project nodes
+const projects = queryNodes(nodes, {
+  mode: 'starts-with',
+  pattern: 'Project:'
+})
+
+// Process each project and its tasks
+projects.forEach(project => {
+  console.log(`\n${project.nm}:`)
+  
+  walkNodes([project], (node, depth) => {
+    if (depth > 0) {
+      console.log(`  - ${node.nm}`)
+    }
+  })
+})
+```
+
+## Performance Notes
+
+- **Time Complexity**: O(n) where n is the total number of nodes
+- **Space Complexity**: O(d) where d is the maximum depth (call stack)
+- **Suitable For**: Trees with thousands of nodes
+
+## See Also
+
+- [queryNodes](/api/query-nodes) - Search for nodes matching a pattern
+- [WfNode](/api/types#wfnode) - Node type reference

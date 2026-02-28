@@ -1,0 +1,142 @@
+---
+title: 'queryNodes'
+description: 'Search the WorkFlowy tree for nodes matching a pattern'
+---
+
+## Function Signature
+
+```typescript
+function queryNodes(roots: WfNode[], options: QueryOptions): WfNode[]
+```
+
+Searches the tree depth-first and returns all nodes whose stripped name matches the query. Matched nodes are returned with their full subtree intact.
+
+## Parameters
+
+<ParamField path="roots" type="WfNode[]" required>
+  Array of root nodes to search through
+</ParamField>
+
+<ParamField path="options" type="QueryOptions" required>
+  Query configuration object
+  
+  <Expandable title="QueryOptions properties">
+    <ParamField path="mode" type="MatchMode" required>
+      The matching strategy to use. Must be one of:
+      - `'exact'` - Exact string match
+      - `'starts-with'` - Node name starts with pattern
+      - `'contains'` - Node name contains pattern
+      - `'regex'` - Pattern is a regular expression
+    </ParamField>
+    
+    <ParamField path="pattern" type="string" required>
+      The text or regex pattern to match against node names
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+`WfNode[]` - Array of matching nodes with their full subtrees intact
+
+## Types
+
+```typescript
+type MatchMode = 'contains' | 'exact' | 'regex' | 'starts-with'
+
+interface QueryOptions {
+  mode: MatchMode
+  pattern: string
+}
+
+interface WfNode {
+  id: string
+  nm: string          // Node name (may contain HTML)
+  no?: string         // Node note
+  ct: number          // Creation timestamp
+  lm: number          // Last modified timestamp
+  ch?: WfNode[]       // Children nodes
+  metadata?: Record<string, unknown>
+}
+```
+
+## Behavior
+
+- **HTML Stripping**: Node names are stripped of HTML tags before matching
+- **Depth-First Search**: Traverses the tree from top to bottom
+- **Subtree Preservation**: When a node matches, its entire subtree is included
+- **Non-Recursive Results**: Only the matched node is returned, not its matching descendants
+
+## Examples
+
+### Exact Match
+
+Find all nodes with the exact name "TODO":
+
+```typescript
+import { queryNodes } from 'workflowy-scraper'
+
+const results = queryNodes(nodes, {
+  mode: 'exact',
+  pattern: 'TODO'
+})
+```
+
+### Starts With
+
+Find all nodes starting with "Project:":
+
+```typescript
+const projects = queryNodes(nodes, {
+  mode: 'starts-with',
+  pattern: 'Project:'
+})
+```
+
+### Contains
+
+Find all nodes containing "meeting":
+
+```typescript
+const meetings = queryNodes(nodes, {
+  mode: 'contains',
+  pattern: 'meeting'
+})
+```
+
+### Regular Expression
+
+Find all nodes matching a date pattern:
+
+```typescript
+const dated = queryNodes(nodes, {
+  mode: 'regex',
+  pattern: '\\d{4}-\\d{2}-\\d{2}'
+})
+```
+
+### Combining with walkNodes
+
+Search for nodes and then process them:
+
+```typescript
+import { queryNodes, walkNodes } from 'workflowy-scraper'
+
+// Find all "TODO" nodes
+const todos = queryNodes(nodes, {
+  mode: 'exact',
+  pattern: 'TODO'
+})
+
+// Process each TODO and its children
+todos.forEach(todo => {
+  walkNodes([todo], (node, depth) => {
+    console.log(`${'  '.repeat(depth)}${node.nm}`)
+  })
+})
+```
+
+## See Also
+
+- [walkNodes](/api/walk-nodes) - Traverse all nodes in a tree
+- [WfNode](/api/types#wfnode) - Node type reference
