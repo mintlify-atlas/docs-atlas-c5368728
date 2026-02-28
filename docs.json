@@ -77,7 +77,15 @@
             "pages": [
               "api/build-markdown",
               "api/build-json",
-              "api/collect-roots"
+              "api/collect-roots",
+              "api/markdown-helpers",
+              "api/file-helpers"
+            ]
+          },
+          {
+            "group": "Tree Operations",
+            "pages": [
+              "api/tree-helpers"
             ]
           },
           {

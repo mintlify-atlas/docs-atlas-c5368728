@@ -1,0 +1,126 @@
+---
+title: Markdown Helper Functions
+description: Low-level functions for converting individual nodes to markdown
+---
+
+## nodeToMarkdown
+
+Recursively converts a single WorkFlowy node and its children into markdown format.
+
+### Signature
+
+```typescript
+function nodeToMarkdown(node: WfNode, depth: number): string
+```
+
+### Parameters
+
+<ParamField path="node" type="WfNode" required>
+  The node to convert
+</ParamField>
+
+<ParamField path="depth" type="number" required>
+  Current indentation depth (0 for root level)
+</ParamField>
+
+### Returns
+
+Markdown string with:
+- Indented bullet points (2 spaces per level)
+- Completed items marked with `[x]`
+- Notes formatted as blockquotes
+
+### Example
+
+```typescript
+import { nodeToMarkdown } from 'workflowy-scraper'
+
+const node: WfNode = {
+  id: '123',
+  nm: 'My Task',
+  no: 'Important note',
+  ct: 1234567890,
+  lm: 1234567890,
+  cp: 1234567890, // Completed
+  ch: [
+    {
+      id: '456',
+      nm: 'Subtask',
+      ct: 1234567890,
+      lm: 1234567890
+    }
+  ]
+}
+
+const markdown = nodeToMarkdown(node, 0)
+console.log(markdown)
+// Output:
+// - [x] My Task
+//   > Important note
+//   - Subtask
+```
+
+---
+
+## buildSectionMarkdown
+
+Builds a complete markdown document for a top-level section node with a heading.
+
+### Signature
+
+```typescript
+function buildSectionMarkdown(node: WfNode): string
+```
+
+### Parameters
+
+<ParamField path="node" type="WfNode" required>
+  The section node to convert (typically a top-level node)
+</ParamField>
+
+### Returns
+
+A complete markdown document with:
+- H1 heading from node name
+- Node notes as blockquote (if present)
+- Child nodes as bullet list
+
+### Example
+
+```typescript
+import { WorkFlowyClient, queryNodes, buildSectionMarkdown } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient('your-session-id')
+const data = await client.fetchInitData()
+const roots = collectAllRoots(data)
+
+// Find a specific section
+const sections = queryNodes(roots, {
+  mode: 'exact',
+  pattern: 'Meeting Notes'
+})
+
+if (sections[0]) {
+  const markdown = buildSectionMarkdown(sections[0])
+  console.log(markdown)
+  // Output:
+  // # Meeting Notes
+  //
+  // > Weekly team sync
+  //
+  // - Action item 1
+  // - Action item 2
+}
+```
+
+### Use Cases
+
+- Export individual sections as standalone documents
+- Generate section-specific markdown files
+- Create documentation from WorkFlowy outlines
+
+## Related Functions
+
+- [buildMarkdown](/api/build-markdown) - Convert multiple roots to markdown
+- [queryNodes](/api/query-nodes) - Find specific sections
+- [stripHtml](/api/utilities#striphtml) - Clean HTML from node content

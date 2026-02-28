@@ -1,0 +1,88 @@
+---
+title: File Helper Functions
+description: Utility functions for working with files
+---
+
+## writeToFile
+
+Writes content to a file, creating parent directories as needed.
+
+### Signature
+
+```typescript
+async function writeToFile(content: string, filePath: string): Promise<number>
+```
+
+### Parameters
+
+<ParamField path="content" type="string" required>
+  The content to write to the file
+</ParamField>
+
+<ParamField path="filePath" type="string" required>
+  Path to the output file (parent directories will be created automatically)
+</ParamField>
+
+### Returns
+
+Promise resolving to the number of bytes written.
+
+### Example
+
+```typescript
+import { WorkFlowyClient, collectAllRoots, buildMarkdown, writeToFile } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient('your-session-id')
+const data = await client.fetchInitData()
+const roots = collectAllRoots(data)
+const markdown = buildMarkdown(roots)
+
+// Write to file, creating directories if needed
+const bytes = await writeToFile(markdown, 'exports/workflowy/notes.md')
+console.log(`Wrote ${bytes} bytes`)
+```
+
+---
+
+## totalNodeCount
+
+Returns the total node count for a set of root nodes.
+
+### Signature
+
+```typescript
+function totalNodeCount(roots: WfNode[]): number
+```
+
+### Parameters
+
+<ParamField path="roots" type="WfNode[]" required>
+  Array of root nodes to count
+</ParamField>
+
+### Returns
+
+Total number of nodes including all descendants.
+
+### Example
+
+```typescript
+import { WorkFlowyClient, collectAllRoots, totalNodeCount } from 'workflowy-scraper'
+
+const client = new WorkFlowyClient('your-session-id')
+const data = await client.fetchInitData()
+const roots = collectAllRoots(data)
+
+const total = totalNodeCount(roots)
+console.log(`Total nodes: ${total.toLocaleString()}`)
+```
+
+<Note>
+This function is a convenience wrapper around `countNodes()` for working with root node arrays.
+</Note>
+
+## Related Functions
+
+- [countNodes](/api/tree-helpers#countnodes) - Count nodes in a tree
+- [buildMarkdown](/api/build-markdown) - Generate markdown content
+- [buildJson](/api/build-json) - Generate JSON content
